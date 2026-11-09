@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Agende seu horário · Clínica Bezerra</title>
+<meta name="theme-color" content="#1f6f62">
+<link rel="icon" href="icon-192.png">
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f3f5f4;--surface:#fff;--fg:#1b2624;--muted:#5d6d69;--line:#d7e0dd;--accent:#1f6f62;--accent-soft:#d6ebe6;--accent-fg:#fff;--gold:#a8834a;--bad:#b03a3a;
+  --f-display:"Outfit",system-ui,sans-serif;--f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#111816;--surface:#18211f;--fg:#e4ecea;--muted:#9aaba7;--line:#2c3a37;--accent:#4fb8a5;--accent-soft:#1d3a35;--accent-fg:#0b1513;--gold:#d3ad72;--bad:#ec8080;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body)}
+header{background:var(--accent);color:var(--accent-fg);padding:28px max(16px,env(safe-area-inset-left,0px)) 24px}
+header b{font-family:var(--f-display);font-size:24px;display:block}header span{opacity:.85;font-size:14px}
+main{max-width:560px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-left,0px)) 48px;display:flex;flex-direction:column;gap:10px}
+h2{font-family:var(--f-display);font-size:17px;margin:8px 0 4px}
+.o{all:unset;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.o b{display:block}.o span{font-size:13px;color:var(--muted)}.o:hover,.o:focus-visible{border-color:var(--accent)}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}.days button{all:unset;cursor:pointer;flex:none;text-align:center;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--surface)}
+.days span{display:block;font-size:12px;color:var(--muted);text-transform:capitalize}.days b{font-size:18px}.days .on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}.days .on span{color:var(--accent-fg)}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}.slots button{all:unset;cursor:pointer;text-align:center;border:1px solid var(--line);border-radius:10px;padding:10px 0;font-weight:600;background:var(--surface)}.slots button:hover,.slots button:focus-visible{border-color:var(--accent);color:var(--accent)}
+select,input{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}label.chk{flex-direction:row;align-items:flex-start;gap:8px}label.chk input{width:auto;margin-top:3px}
+.btn{font:inherit;font-weight:600;border:0;background:var(--accent);color:var(--accent-fg);padding:12px 18px;border-radius:10px;cursor:pointer}.btn:disabled{opacity:.6}
+.back{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
+.sum{background:var(--accent-soft);border-radius:12px;padding:12px 14px}.err{color:var(--bad)}.muted{color:var(--muted);font-size:13px}
+.ok{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center}
+</style></head><body>
+<header><b id="nome">Clínica Bezerra</b><span>Agende seu horário online</span></header>
+<main id="m"><p class="muted">Carregando horários…</p></main>
+<script>
+const sb=supabase.createClient(CB_CONFIG.url,CB_CONFIG.key);const m=document.getElementById('m');
+const pad=n=>String(n).padStart(2,'0'),iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[y,mo,d]=s.split('-').map(Number);return new Date(y,mo-1,d)},toMin=h=>{const[a,b]=h.split(':').map(Number);return a*60+b},toH=x=>pad(Math.floor(x/60))+':'+pad(x%60);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const BRL=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+let cfg,st={step:1};
+async function carregar(){const{data,error}=await sb.rpc('agenda_publica');if(error){m.innerHTML='<p class="err">Não foi possível carregar a agenda. Tente de novo em instantes.</p>';return}cfg=data;if(cfg.clinica)document.getElementById('nome').textContent=cfg.clinica;draw()}
+function livres(data,prof,proc){const d=parse(data);if(d.getDay()===0)return[];const dur=proc.dur||30;const oc=cfg.ocupados.filter(o=>o.data===data&&o.prof===prof).map(o=>[toMin(o.hora),toMin(o.hora)+o.dur]);
+  const now=new Date(),hoje=iso(now),out=[];for(let x=toMin(cfg.inicio);x+dur<=toMin(cfg.fim);x+=cfg.passo||30){if(data===hoje&&x<=now.getHours()*60+now.getMinutes()+60)continue;if(oc.some(([s,e])=>x<e&&x+dur>s))continue;out.push(toH(x))}return out}
+function draw(){if(!cfg.ativo){m.innerHTML='<p>O agendamento online está pausado no momento. Fale com a clínica pelo WhatsApp.</p>';return}
+  const proc=cfg.procs.find(p=>p.id===st.proc);
+  if(st.step===1){m.innerHTML='<h2>Escolha o procedimento</h2>'+cfg.procs.map(p=>`<button class="o" data-p="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${p.dur} min · ${BRL(p.preco)}</span></button>`).join('');
+    m.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{st={step:2,proc:b.dataset.p};draw()});return}
+  if(st.step===2){const dias=[...Array(21)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()+i);return iso(d)}).filter(d=>parse(d).getDay()!==0);
+    st.prof=st.prof||cfg.profs[0];st.data=st.data||dias.find(d=>livres(d,st.prof,proc).length)||dias[0];const sl=livres(st.data,st.prof,proc);
+    m.innerHTML=`<button class="back" id="v">‹ ${esc(proc.nome)}</button><h2>Com quem e quando</h2><select id="pf" aria-label="Profissional">${cfg.profs.map(p=>`<option ${p===st.prof?'selected':''}>${esc(p)}</option>`).join('')}</select>
+    <div class="days">${dias.map(d=>{const x=parse(d);return `<button data-d="${d}" class="${d===st.data?'on':''}"><span>${x.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</span><b>${x.getDate()}</b></button>`}).join('')}</div>
+    <div class="slots">${sl.map(h=>`<button data-h="${h}">${h}</button>`).join('')||'<p class="muted">Sem horários livres neste dia. Escolha outro.</p>'}</div>`;
+    document.getElementById('v').onclick=()=>{st={step:1};draw()};document.getElementById('pf').onchange=e=>{st.prof=e.target.value;st.data=null;draw()};
+    m.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{st.data=b.dataset.d;draw()});m.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{st.hora=b.dataset.h;st.step=3;draw()});return}
+  if(st.step===3){m.innerHTML=`<button class="back" id="v">‹ Voltar</button><h2>Seus dados</h2><div class="sum"><b>${esc(proc.nome)}</b><br>${parse(st.data).toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})} às ${st.hora}<br>com ${esc(st.prof)}</div>
+    <form id="f" style="display:flex;flex-direction:column;gap:10px"><label>Nome completo<input id="n" required minlength="3" maxlength="120" autocomplete="name"></label><label>WhatsApp com DDD<input id="t" required inputmode="tel" autocomplete="tel" placeholder="(81) 90000-0000"></label>
+    <label class="chk"><input type="checkbox" required> Autorizo a Clínica Bezerra a usar meus dados para este agendamento e para me enviar lembretes, conforme a LGPD.</label><button class="btn" id="b">Confirmar agendamento</button><p id="e" class="err"></p></form>`;
+    document.getElementById('v').onclick=()=>{st.step=2;draw()};
+    document.getElementById('f').onsubmit=async e=>{e.preventDefault();const b=document.getElementById('b');b.disabled=true;
+      const{error}=await sb.rpc('agendar_online',{p_nome:document.getElementById('n').value,p_tel:document.getElementById('t').value,p_proc:st.proc,p_prof:st.prof,p_data:st.data,p_hora:st.hora});
+      if(error){document.getElementById('e').textContent=error.message+'.';b.disabled=false;await carregar();return}
+      m.innerHTML=`<div class="ok"><h2>Horário reservado</h2><p>${esc(proc.nome)}<br>${parse(st.data).toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})} às ${st.hora} com ${esc(st.prof)}</p><p class="muted">Você vai receber a confirmação pelo WhatsApp. Se precisar remarcar, fale com a clínica.</p></div>`}}}
+carregar();
+</script></body></html>
