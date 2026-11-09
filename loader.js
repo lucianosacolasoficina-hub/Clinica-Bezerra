@@ -152,8 +152,10 @@ async function iniciar() {
     q$('#carregando').innerHTML = `<div class="au-card"><h1>Não foi possível abrir</h1><p>${traduz(err.message || String(err)).replace(/</g, '&lt;')}</p><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`;
   }
 }
-sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { q$('#auth').hidden = false; q$('#carregando').hidden = true; trocaModo('nova'); } else if (ev === 'SIGNED_IN') iniciar(); });
+sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { q$('#auth').hidden = false; q$('#carregando').hidden = true; trocaModo('nova'); } else if (ev === 'SIGNED_IN') setTimeout(iniciar, 0); }); // fora do aviso de login, senão a biblioteca trava esperando a si mesma
 iniciar();
+// rede de segurança: se travar no "Carregando…", oferece tentar de novo
+setTimeout(() => { const c = q$('#carregando'); if (c && !c.hidden && q$('.app').hidden && /Carregando/.test(c.textContent)) c.innerHTML = '<div class="au-card"><h1>Está demorando…</h1><p>Não consegui abrir o sistema. Verifique a internet e tente de novo.</p><button class="btn" onclick="location.reload()">Tentar de novo</button> <button class="btn ghost" onclick="sairSistema()">Sair e entrar de novo</button></div>'; }, 20000);
 
 /* ---------- instalar como aplicativo ---------- */
 let pedidoInstalar = null;
