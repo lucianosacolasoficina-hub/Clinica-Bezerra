@@ -85,8 +85,11 @@ async function flush() {
   const ordem = c => c === 'colab' ? 0 : c === 'config' ? 1 : 2;
   up.sort((a, b) => ordem(a.row.colecao) - ordem(b.row.colecao));
   try {
-    for (let i = 0; i < up.length; i += 100) {
-      const lote = up.slice(i, i + 100);
+    // colaboradores, depois configurações, depois o resto: cada grupo num envio separado,
+    // porque o banco só libera o resto depois que o colaborador já está gravado
+    const grupos = [0, 1, 2].map(n => up.filter(x => ordem(x.row.colecao) === n));
+    const lotes = []; grupos.forEach(g => { for (let i = 0; i < g.length; i += 100) lotes.push(g.slice(i, i + 100)); });
+    for (const lote of lotes) {
       const { error } = await sb.from('registros').upsert(lote.map(x => x.row));
       if (error) throw error; lote.forEach(x => snap.set(x.k, x.j));
     }
