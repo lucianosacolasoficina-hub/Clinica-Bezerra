@@ -163,7 +163,7 @@ language sql stable security definer set search_path = public as $$
                  'prof', a.dados->>'prof', 'dur', coalesce((p.dados->>'dur')::int, 30)))
               from registros a left join registros p on p.colecao = 'procs' and p.id = a.dados->>'proc'
               where a.colecao = 'ag' and a.dados->>'status' <> 'cancelado'
-                and (a.dados->>'data')::date between current_date and current_date + 31), '[]'::jsonb)
+                and (a.dados->>'data')::date between (now() at time zone 'America/Sao_Paulo')::date and (now() at time zone 'America/Sao_Paulo')::date + 31), '[]'::jsonb)
   )
 $$;
 
@@ -177,7 +177,7 @@ begin
   if length(trim(coalesce(p_nome,''))) < 3 or length(trim(p_nome)) > 120 then raise exception 'Informe o nome completo'; end if;
   tel := regexp_replace(coalesce(p_tel,''), '\D', '', 'g');
   if length(tel) < 10 or length(tel) > 13 then raise exception 'Telefone inválido'; end if;
-  if p_data < current_date or p_data > current_date + 31 or extract(dow from p_data) = 0 then raise exception 'Data indisponível'; end if;
+  if p_data < (now() at time zone 'America/Sao_Paulo')::date or p_data > (now() at time zone 'America/Sao_Paulo')::date + 31 or extract(dow from p_data) = 0 then raise exception 'Data indisponível'; end if;
   if p_hora !~ '^\d{2}:\d{2}$' then raise exception 'Horário inválido'; end if;
   if not exists (select 1 from registros where colecao = 'colab' and coalesce(nullif(dados->>'exib',''), dados->>'nome') = p_prof
                  and coalesce((dados->>'atende')::boolean,false) and coalesce((dados->>'ativo')::boolean,false)) then
@@ -199,7 +199,7 @@ begin
   if pac is null then
     pac := 'on' || substr(md5(random()::text), 1, 8);
     insert into registros (colecao, id, dados) values ('pacientes', pac, jsonb_build_object(
-      'id', pac, 'nome', trim(p_nome), 'tel', p_tel, 'nasc', '', 'obs', '', 'desde', current_date::text, 'origem', 'online'));
+      'id', pac, 'nome', trim(p_nome), 'tel', p_tel, 'nasc', '', 'obs', '', 'desde', (now() at time zone 'America/Sao_Paulo')::date::text, 'origem', 'online'));
   end if;
   ag := 'on' || substr(md5(random()::text), 1, 8);
   insert into registros (colecao, id, dados) values ('ag', ag, jsonb_build_object(
