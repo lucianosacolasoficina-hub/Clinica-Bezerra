@@ -92,8 +92,11 @@ async function flush() {
     const grupos = [0, 1, 2].map(n => up.filter(x => ordem(x.row.colecao) === n));
     const lotes = []; grupos.forEach(g => { for (let i = 0; i < g.length; i += 100) lotes.push(g.slice(i, i + 100)); });
     for (const lote of lotes) {
-      const { error } = await sb.from('registros').upsert(lote.map(x => x.row));
-      if (error) throw error; lote.forEach(x => snap.set(x.k, x.j));
+      // registro novo vai por "insert": o "upsert" do banco exige poder ler a linha antes de existir,
+      // e isso barra o primeiro cadastro do administrador
+      const novos = lote.filter(x => !snap.has(x.k)), velhos = lote.filter(x => snap.has(x.k));
+      if (novos.length) { const { error } = await sb.from('registros').insert(novos.map(x => x.row)); if (error) throw error; novos.forEach(x => snap.set(x.k, x.j)); }
+      if (velhos.length) { const { error } = await sb.from('registros').upsert(velhos.map(x => x.row)); if (error) throw error; velhos.forEach(x => snap.set(x.k, x.j)); }
     }
     const porCol = {}; del.forEach(k => { const i = k.indexOf('|'); (porCol[k.slice(0, i)] = porCol[k.slice(0, i)] || []).push(k.slice(i + 1)); });
     for (const [c, ids] of Object.entries(porCol)) {
