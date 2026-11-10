@@ -257,6 +257,31 @@ label.chk input{width:auto;flex:none}
 [data-tema="noite"] .ag-ev{border-radius:3px;border-left-width:3px}
 [data-tema="noite"] .ag-colh span{color:var(--gold)}
 @media (max-width:720px){.ag-dia{min-height:64px;padding:3px}.ag-mini{font-size:0;padding:0;height:6px;background:var(--sf)}.ag-mini .dot{display:none}.ag-num{font-size:12px;width:22px;height:22px}.ag-grid{grid-template-columns:44px repeat(var(--cols),minmax(110px,1fr))}}
+/* ---------- Cora ---------- */
+#cora-btn{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:40;font:inherit;font-weight:600;display:flex;align-items:center;gap:8px;padding:8px 16px 8px 8px;border-radius:99px;border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#cora-btn span,.cora-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#fff;font-family:var(--f-display);font-weight:700;flex:none}
+#cora{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:41;width:min(400px,calc(100vw - 32px));height:min(600px,calc(100vh - 110px));background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.2);display:flex;flex-direction:column;overflow:hidden}
+#cora[hidden]{display:none}
+#cora header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+#cora header div{flex:1}#cora header b{display:block;font-family:var(--f-display);font-size:16px}#cora header small{color:var(--muted);font-size:12px}
+#cora header .x{all:unset;cursor:pointer;font-size:22px;padding:0 6px;color:var(--muted)}
+#cora-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.cora-m{max-width:92%;background:var(--surface-2);border-radius:14px 14px 14px 4px;padding:9px 12px;font-size:13.5px;line-height:1.45;align-self:flex-start;overflow-wrap:anywhere}
+.cora-m.eu{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-radius:14px 14px 4px 14px}
+.cora-m ul{margin:6px 0 0;padding-left:18px}
+.cora-b{margin-top:8px}.cora-b>b{display:flex;align-items:center;font-size:13px}
+.cora-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.cora-chips button,.cora-chips a{all:unset;cursor:pointer;font-size:12.5px;font-weight:500;padding:4px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);color:var(--fg)}
+.cora-chips button:hover,.cora-chips a:hover{border-color:var(--accent);color:var(--accent)}
+.cora-chips.sug{margin-top:2px}
+.cora-list{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.cora-list>*{all:unset;box-sizing:border-box;display:block;background:var(--surface);border-radius:8px;padding:6px 9px;font-size:13px}
+.cora-list>button{cursor:pointer}.cora-list>button:hover{outline:1px solid var(--accent)}
+.cora-list span{display:block;color:var(--muted);font-size:12px}
+#cora form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+#cora form input{flex:1;min-width:0}
+@media (max-width:720px){#cora{right:8px;left:8px;width:auto;bottom:calc(70px + env(safe-area-inset-bottom,0px));height:calc(100vh - 150px)}main{padding-bottom:90px}}
+@media print{#cora,#cora-btn{display:none}}
 /* ---------- aparências (Clássico é o padrão acima) ---------- */
 :root[data-tema="rose"]{--bg:#faf5f2;--surface:#fffdfb;--surface-2:#f7ede8;--fg:#3b2b2a;--muted:#86706b;--line:#eddcd5;
   --accent:#a95a52;--accent-soft:#f6e0da;--accent-fg:#fff;--gold:#b0834f;--gold-soft:#f5e8da;
@@ -1161,4 +1186,113 @@ window.campSend=el=>{const p=P(el.dataset.pid);el.href=wa(p.tel,campMsg.replaceA
 window.go=go;
 try{const v=localStorage.getItem('cb-view');if(v)view=v}catch(e){}
 userBox();render();
+/* ---------- Cora, assistente da clínica (funciona sem internet e sem IA: lê os dados do próprio sistema) ---------- */
+const NORM=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const SEMANA=['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+function coraData(t){
+  if(/depois de amanha/.test(t))return iso(addDays(TODAY,2));
+  if(/amanha/.test(t))return iso(addDays(TODAY,1));
+  const m=t.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if(m){let y=m[3]?+m[3]:TODAY.getFullYear();if(y<100)y+=2000;const d=new Date(y,m[2]-1,+m[1]);if(!m[3]&&d<TODAY)d.setFullYear(y+1);return iso(d)}
+  for(let i=0;i<7;i++)if(new RegExp('\\b'+SEMANA[i]).test(t)){let n=(i-TODAY.getDay()+7)%7;if(n===0&&!/hoje/.test(t))n=7;return iso(addDays(TODAY,n))}
+  return T}
+function coraProf(t){return PROFS().find(p=>NORM(p).replace(/\b(dra?|doutora?)\.?\s/g,'').split(/[\s()]+/).filter(w=>w.length>=3).some(w=>new RegExp('\\b'+w+'\\b').test(t)))}
+function coraProc(t){let best=null,sc=0;db.procs.forEach(p=>{const w=NORM(p.nome).split(/\W+/).filter(x=>x.length>=4);const s=w.filter(x=>t.includes(x)).length;if(s>sc){sc=s;best=p}});return best}
+function coraPacs(t){const STOP=['de','da','do','das','dos','e'];let sc=0,l=[];
+  db.pacientes.forEach(p=>{const w=NORM(p.nome).split(/\s+/).filter(x=>x.length>=3&&!STOP.includes(x));if(!w.length||!new RegExp('\\b'+w[0]+'\\b').test(t))return;
+    const s=w.filter(x=>new RegExp('\\b'+x+'\\b').test(t)).length;if(s>sc){sc=s;l=[p]}else if(s===sc)l.push(p)});return l}
+const dataLonga=s=>{const d=parse(s);const r=s===T?'hoje':s===iso(addDays(TODAY,1))?'amanhã':d.toLocaleDateString('pt-BR',{weekday:'long'});return `${r}, ${d.toLocaleDateString('pt-BR',{day:'numeric',month:'long'})}`};
+const semPerm='Seu perfil não tem acesso a essa informação. Fale com a administração se precisar.';
+function coraLivres(t){
+  if(!can('agenda'))return semPerm;
+  const data=coraData(t),prof=coraProf(t),proc=coraProc(t),dur=proc?proc.dur:30;
+  if(parse(data).getDay()===0)return `O dia ${fmtD(data)} é domingo e a clínica não atende. Quer ver outro dia?`;
+  const on=db.online||{},passo=on.passo||30,ini=MIN(on.inicio||'09:00'),fim=MIN(on.fim||'18:00');
+  const agora=new Date(),mAg=data===T?agora.getHours()*60+agora.getMinutes():-1;
+  const profs=prof?[prof]:PROFS();if(!profs.length)return 'Ainda não há profissionais marcados como "Atende pacientes na agenda". Cadastre em Administração, Colaboradores.';
+  const blocos=profs.map(p=>{const oc=db.ag.filter(a=>a.data===data&&a.prof===p&&a.status!=='cancelado').map(a=>[MIN(a.hora),MIN(a.hora)+agDur(a)]);
+    const l=[];for(let m=ini;m+dur<=fim;m+=passo){if(m<=mAg)continue;if(!oc.some(([a,b])=>m<b&&m+dur>a))l.push(HM(m))}
+    return `<div class="cora-b"><b><i class="dot" style="background:${esc(corProf(p))}"></i>${esc(p)}</b>${l.length?`<div class="cora-chips">${l.slice(0,12).map(h=>`<button onclick="coraFecha();agNovo('${data}','${h}','${esc(p)}')">${h}</button>`).join('')}${l.length>12?`<span class="muted">+${l.length-12}</span>`:''}</div>`:'<span class="muted">Sem horários livres.</span>'}</div>`}).join('');
+  return `Horários livres para ${dataLonga(data)}${proc?` (${esc(proc.nome)}, ${dur} min)`:''}. Toque num horário para agendar.${blocos}`}
+function coraAgenda(t){
+  if(!can('agenda'))return semPerm;
+  const data=coraData(t),prof=coraProf(t);
+  const l=db.ag.filter(a=>a.data===data&&(!prof||a.prof===prof)).sort((a,b)=>a.hora.localeCompare(b.hora));
+  if(!l.length)return `Nenhum atendimento ${prof?'de '+esc(prof)+' ':''}para ${dataLonga(data)}.`;
+  const ativos=l.filter(a=>a.status!=='cancelado');
+  return `${ativos.length} ${ativos.length===1?'atendimento':'atendimentos'} ${prof?'de '+esc(prof)+' ':''}para ${dataLonga(data)}:<div class="cora-list">${l.map(a=>`<button onclick="coraFecha();verAg('${a.id}')"><b>${a.hora}</b> ${esc(P(a.pac).nome)}<span>${esc(PR(a.proc).nome)} · ${esc(a.prof)} · ${ST_NOME[a.status]||a.status}</span></button>`).join('')}</div>
+  <div class="cora-chips"><button onclick="coraFecha();agIr('dia','${data}')">Abrir na agenda</button></div>`}
+function coraRetornos(){
+  if(!can('pacientes'))return semPerm;
+  const r=listaRetornos().filter(x=>x.r<=iso(addDays(TODAY,30)));
+  if(!r.length)return 'Nenhum retorno pendente para os próximos 30 dias.';
+  return `${r.length} ${r.length===1?'paciente precisa':'pacientes precisam'} de retorno até ${fmtD(iso(addDays(TODAY,30)))}:<div class="cora-list">${r.slice(0,10).map(x=>`<button onclick="coraFecha();formAg(null,'${x.p.id}','${x.ult.proc}')"><b>${esc(x.p.nome)}</b><span>${esc(PR(x.ult.proc).nome)} em ${fmtD(x.ult.data)} · ${x.r<T?'atrasado desde '+fmtD(x.r):'retorno em '+fmtD(x.r)}</span></button>`).join('')}</div>${r.length>10?`<span class="muted">E mais ${r.length-10}. Veja todos no Painel.</span>`:''}`}
+function coraAniv(t){
+  if(!can('pacientes'))return semPerm;
+  const sem=/semana/.test(t),hoje=/hoje/.test(t),mes=TODAY.getMonth();
+  const dias=hoje?[T]:sem?[...Array(7)].map((_,i)=>iso(addDays(TODAY,i))):null;
+  const l=db.pacientes.filter(p=>p.nasc).filter(p=>{const md=p.nasc.slice(5);return dias?dias.some(d=>d.slice(5)===md):+p.nasc.slice(5,7)-1===mes}).sort((a,b)=>a.nasc.slice(5).localeCompare(b.nasc.slice(5)));
+  const per=hoje?'hoje':sem?'nos próximos 7 dias':'este mês';
+  if(!l.length)return `Nenhum aniversariante ${per}.`;
+  return `${l.length} ${l.length===1?'aniversariante':'aniversariantes'} ${per}:<div class="cora-list">${l.map(p=>`<button onclick="coraFecha();verPac('${p.id}')"><b>${esc(p.nome)}</b><span>${p.nasc.slice(8)}/${p.nasc.slice(5,7)} · faz ${TODAY.getFullYear()-+p.nasc.slice(0,4)} anos${p.tel?' · '+esc(p.tel):''}</span></button>`).join('')}</div>
+  <div class="cora-chips"><button onclick="coraFecha();go('marketing')">Enviar mensagem de parabéns</button></div>`}
+function coraFaltas(){
+  if(!can('agenda'))return semPerm;
+  const m=T.slice(0,7),l=db.ag.filter(a=>a.data.slice(0,7)===m&&a.status==='faltou');
+  const tot=db.ag.filter(a=>a.data.slice(0,7)===m&&a.data<=T&&a.status!=='cancelado').length;
+  if(!l.length)return 'Nenhuma falta registrada neste mês.';
+  return `${l.length} ${l.length===1?'falta':'faltas'} neste mês (${tot?Math.round(l.length/tot*100):0}% dos atendimentos até hoje):<div class="cora-list">${l.map(a=>`<button onclick="coraFecha();verAg('${a.id}')"><b>${fmtD(a.data)} ${a.hora}</b> ${esc(P(a.pac).nome)}<span>${esc(PR(a.proc).nome)} · ${esc(a.prof)}</span></button>`).join('')}</div>`}
+function coraEstoque(){
+  if(!can('procedimentos'))return semPerm;
+  if(!db.estoque||!db.estoque.length)return 'O estoque ainda não tem produtos cadastrados.';
+  const lim=iso(addDays(TODAY,60)),venc=[],baixo=db.estoque.filter(i=>saldo(i)<(i.min||0));
+  db.estoque.forEach(i=>i.lotes.forEach(l=>{if(l.qtd>0&&l.validade<=lim)venc.push({i,l})}));venc.sort((a,b)=>a.l.validade.localeCompare(b.l.validade));
+  if(!venc.length&&!baixo.length)return 'Estoque em dia: nada vencendo nos próximos 60 dias e nenhum produto abaixo do mínimo.';
+  return `${venc.length?`<b>Vencendo em até 60 dias</b><div class="cora-list">${venc.map(({i,l})=>`<div><b>${esc(i.nome)}</b><span>Lote ${esc(l.lote)} · ${l.qtd} ${esc(i.unid)} · ${l.validade<T?'vencido em':'vence em'} ${fmtD(l.validade)}</span></div>`).join('')}</div>`:''}
+  ${baixo.length?`<b>Abaixo do mínimo</b><div class="cora-list">${baixo.map(i=>`<div><b>${esc(i.nome)}</b><span>${saldo(i)} ${esc(i.unid)} (mínimo ${i.min})</span></div>`).join('')}</div>`:''}
+  <div class="cora-chips"><button onclick="coraFecha();go('estoque')">Abrir estoque</button></div>`}
+function coraFinanceiro(){
+  if(!can('financeiro'))return semPerm;
+  const mf=monthFin(),rec=mf.filter(f=>f.tipo==='receita').reduce((s,f)=>s+f.valor,0),recebido=mf.filter(f=>f.tipo==='receita'&&f.status!=='pendente').reduce((s,f)=>s+f.valor,0),
+    desp=mf.filter(f=>f.tipo==='despesa').reduce((s,f)=>s+f.valor,0),pend=db.fin.filter(f=>f.tipo==='receita'&&f.status==='pendente').reduce((s,f)=>s+f.valor,0);
+  return `Resumo de ${TODAY.toLocaleDateString('pt-BR',{month:'long'})}:<div class="cora-list"><div><b>Receitas</b><span>${BRL(rec)} (já recebido ${BRL(recebido)})</span></div><div><b>Despesas</b><span>${BRL(desp)}</span></div><div><b>Resultado</b><span>${BRL(rec-desp)}</span></div><div><b>A receber (todos os meses)</b><span>${BRL(pend)}</span></div></div>
+  <div class="cora-chips"><button onclick="coraFecha();go('financeiro')">Abrir financeiro</button></div>`}
+function coraPaciente(p){
+  if(!can('pacientes'))return semPerm;
+  const h=db.ag.filter(a=>a.pac===p.id).sort((a,b)=>b.data.localeCompare(a.data)),feitos=h.filter(a=>a.status==='realizado');
+  const prox=h.filter(a=>a.data>=T&&a.status!=='cancelado').sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))[0];
+  const tot=feitos.reduce((s,a)=>s+PR(a.proc).preco,0),ev=(db.evol||[]).filter(e=>e.pac===p.id).length;
+  return `<b>${esc(p.nome)}</b><div class="cora-list"><div><span>${[p.tel&&esc(p.tel),p.nasc&&idade(p.nasc),p.desde&&'cliente desde '+fmtD(p.desde)].filter(Boolean).join(' · ')||'Sem dados de contato'}</span></div>
+  <div><b>Último atendimento</b><span>${feitos[0]?fmtD(feitos[0].data)+' · '+esc(PR(feitos[0].proc).nome)+' · '+esc(feitos[0].prof):'Nenhum ainda'}</span></div>
+  <div><b>Próximo</b><span>${prox?fmtD(prox.data)+' às '+prox.hora+' · '+esc(PR(prox.proc).nome):'Nada agendado'}</span></div>
+  <div><b>Histórico</b><span>${feitos.length} ${feitos.length===1?'atendimento':'atendimentos'}${can('financeiro')?' · '+BRL(tot):''}${can('prontuario')?' · '+ev+(ev===1?' evolução':' evoluções')+' no prontuário':''}${h.some(a=>a.status==='faltou')?' · '+h.filter(a=>a.status==='faltou').length+' falta(s)':''}</span></div>
+  ${p.obs?`<div><b>Observações</b><span>${esc(p.obs)}</span></div>`:''}</div>
+  <div class="cora-chips"><button onclick="coraFecha();verPac('${p.id}')">Abrir ficha</button><button onclick="coraFecha();formAg(null,'${p.id}')">Agendar</button>${p.tel?`<a href="${wa(p.tel,'Olá, '+primeiro(p)+'!')}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div>`}
+const CORA_SUG=['Horários livres hoje','Agenda de amanhã','Retornos pendentes','Aniversariantes do mês','Estoque vencendo','Faturamento do mês'];
+function coraResponde(txt){
+  const t=NORM(txt).trim();
+  if(!t||/^(oi|ola|bom dia|boa tarde|boa noite|ajuda|help|o que voce faz|\?)\b/.test(t)&&t.length<25)
+    return `Oi, ${esc(primeiro(ME()))}! Sou a Cora, a assistente da clínica. Posso te ajudar com:<ul><li>horários livres (ex.: "vagas sexta com a Carla para limpeza de pele")</li><li>a agenda de um dia</li><li>a ficha resumida de uma paciente (é só digitar o nome)</li><li>retornos, aniversariantes e faltas</li><li>estoque vencendo e faturamento do mês</li></ul>`;
+  if(/livre|vaga|disponiv|encaixe|encaixar|tem horario|horarios/.test(t))return coraLivres(t);
+  if(/retorno/.test(t))return coraRetornos();
+  if(/aniversari|parabens/.test(t))return coraAniv(t);
+  if(/falt(a|ou|aram|as)\b|no.?show/.test(t))return coraFaltas();
+  if(/estoque|vencend|vencid|validade|lote|acabando|repor/.test(t))return coraEstoque();
+  if(/fatur|receita|recebi|caixa|financeiro|vendi|lucro|despesa/.test(t))return coraFinanceiro();
+  const pacs=coraPacs(t);
+  if(pacs.length===1)return coraPaciente(pacs[0]);
+  if(pacs.length>1)return `Encontrei ${pacs.length} pacientes com esse nome. Qual delas?<div class="cora-list">${pacs.slice(0,8).map(p=>`<button onclick="coraEnvia(${esc(JSON.stringify(p.nome))})"><b>${esc(p.nome)}</b><span>${esc(p.tel||'')}</span></button>`).join('')}</div>`;
+  if(/agenda|atendimento|marcad|quem vem|consulta|hoje|amanha|segunda|terca|quarta|quinta|sexta|sabado|\d{1,2}\/\d{1,2}/.test(t))return coraAgenda(t);
+  return 'Ainda não sei responder isso. Tente uma destas perguntas, ou digite o nome de uma paciente para ver a ficha resumida.'}
+let coraHist=[];
+function coraDesenha(){const b=$('#cora-msgs');if(!b)return;
+  b.innerHTML=coraHist.map(m=>`<div class="cora-m ${m.eu?'eu':''}">${m.eu?esc(m.t):m.t}</div>`).join('')+`<div class="cora-chips sug">${CORA_SUG.map(s=>`<button onclick="coraEnvia('${s}')">${s}</button>`).join('')}</div>`;
+  b.scrollTop=b.scrollHeight}
+window.coraEnvia=txt=>{txt=String(txt||'').trim();if(!txt)return;coraHist.push({eu:true,t:txt});let r;try{r=coraResponde(txt)}catch(e){r='Tive um problema para responder isso. Tente de outro jeito.'}coraHist.push({t:r});coraHist=coraHist.slice(-30);coraDesenha();const i=$('#cora-in');if(i){i.value='';i.focus()}};
+window.coraAbre=()=>{const p=$('#cora');p.hidden=false;$('#cora-btn').setAttribute('aria-expanded','true');if(!coraHist.length)coraHist.push({t:coraResponde('oi')});coraDesenha();setTimeout(()=>$('#cora-in').focus(),50)};
+window.coraFecha=()=>{$('#cora').hidden=true;$('#cora-btn').setAttribute('aria-expanded','false')};
+document.body.insertAdjacentHTML('beforeend',`<button id="cora-btn" aria-expanded="false" aria-controls="cora" onclick="$('#cora').hidden?coraAbre():coraFecha()"><span>C</span>Cora</button>
+<section id="cora" hidden aria-label="Cora, assistente da clínica"><header><span class="cora-av">C</span><div><b>Cora</b><small>Assistente da clínica</small></div><button class="x" aria-label="Fechar" onclick="coraFecha()">×</button></header>
+<div id="cora-msgs" aria-live="polite"></div><form onsubmit="event.preventDefault();coraEnvia($('#cora-in').value)"><input id="cora-in" placeholder="Pergunte à Cora…" autocomplete="off"><button class="btn sm">Enviar</button></form></section>`);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#cora').hidden&&!dlg.open)coraFecha()});
 </script>
