@@ -29,7 +29,7 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{}' \
-            https://api.render.com/v1/services/${{ vars.RENDER_SITE_ID }}/deploys >/dev/null
+            https://api.render.com/v1/services/srv-dbp3h9vf3r2c73euvn00/deploys >/dev/null
       - name: Avisa
         if: always()
         run: |

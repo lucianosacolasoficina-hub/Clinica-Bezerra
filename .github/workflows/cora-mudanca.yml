@@ -59,7 +59,7 @@ jobs:
           git push -q -f origin cora/$N:teste
           if [ -n "$RENDER_API_KEY" ]; then
             curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{}' \
-              https://api.render.com/v1/services/${{ vars.RENDER_TESTE_ID }}/deploys >/dev/null
+              https://api.render.com/v1/services/srv-dbposi9srm7s738cj2ug/deploys >/dev/null
           fi
       - name: Avisa o resultado
         if: always()
@@ -74,7 +74,7 @@ jobs:
             gh api repos/$R/issues/$N/comments -f body="Não alterei nada. $RESUMO" >/dev/null
           else
             gh api repos/$R/issues/$N/labels -f "labels[]=cora:pronto" >/dev/null
-            gh api repos/$R/issues/$N/comments -f body="Prévia pronta no site de teste: ${{ vars.SITE_TESTE }} (aguarde 1 minuto para atualizar).
+            gh api repos/$R/issues/$N/comments -f body="Prévia pronta no site de teste: https://clinica-bezerra-teste.onrender.com (aguarde 1 minuto para atualizar).
 
           $RESUMO" >/dev/null
           fi
