@@ -1,0 +1,80 @@
+# Cora: recebe um pedido de mudança (issue com o rótulo "cora", aberta pela conta dona do repositório),
+# deixa a IA alterar o sistema, testa e publica no site de teste. Nada vai para o sistema de verdade daqui.
+name: Cora · fazer mudança
+on:
+  issues:
+    types: [opened]
+concurrency: { group: cora, cancel-in-progress: false }
+permissions: { contents: write, issues: write }
+jobs:
+  mudanca:
+    if: contains(github.event.issue.labels.*.name, 'cora') && github.event.issue.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      N: ${{ github.event.issue.number }}
+      R: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Avisa que começou
+        run: |
+          gh api repos/$R/issues/$N/labels -f "labels[]=cora:andamento" >/dev/null
+          gh api repos/$R/issues/$N/comments -f body="Comecei a trabalhar no pedido. A prévia fica pronta em alguns minutos." >/dev/null
+      - name: IA faz a alteração
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEDIDO: ${{ github.event.issue.body }}
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "Falta a chave ANTHROPIC_API_KEY nos Secrets do GitHub" > resumo.txt; exit 1; }
+          git checkout -b cora/$N
+          npm i -g @anthropic-ai/claude-code >/dev/null
+          printf '%s\n\n%s\n' "Pedido de mudança da administradora da Clínica Bezerra (siga CLAUDE.md à risca):" "$PEDIDO" > pedido.txt
+          claude -p "$(cat pedido.txt)" --model claude-sonnet-5-5 --max-turns 40 \
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(python3 build.py)" > resumo.txt
+          rm -f pedido.txt
+      - name: Confere se só mexeu no que pode
+        run: |
+          git add -A -- . ':!resumo.txt'
+          PROIBIDOS=$(git diff --cached --name-only | grep -Ev '^(prototipo/clinica-bezerra\.html|static/agendar\.html|static/manifest\.webmanifest|static/icon-[0-9]+\.png|public/.*)$' || true)
+          if [ -n "$PROIBIDOS" ]; then printf 'A mudança tentou alterar arquivos protegidos e foi recusada:\n%s\n' "$PROIBIDOS" > resumo.txt; exit 1; fi
+      - name: Gera o site e testa todas as telas
+        run: |
+          python3 build.py
+          npm i --no-save playwright@1.63.0 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          node tests/smoke.js 2>&1 | tee teste.txt || { { echo "A alteração quebrou o sistema no teste automático, por isso não publiquei a prévia:"; cat teste.txt; } > resumo.txt; exit 1; }
+      - name: Publica no site de teste
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          TITULO: ${{ github.event.issue.title }}
+        run: |
+          git add -A -- . ':!resumo.txt' ':!teste.txt'
+          if git diff --cached --quiet; then echo "SEM_MUDANCA=1" >> $GITHUB_ENV; exit 0; fi
+          git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" commit -q -m "Cora: $TITULO (#$N)"
+          git push -q -f origin cora/$N
+          git push -q -f origin cora/$N:teste
+          if [ -n "$RENDER_API_KEY" ]; then
+            curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{}' \
+              https://api.render.com/v1/services/${{ vars.RENDER_TESTE_ID }}/deploys >/dev/null
+          fi
+      - name: Avisa o resultado
+        if: always()
+        run: |
+          gh api -X DELETE repos/$R/issues/$N/labels/cora:andamento >/dev/null 2>&1 || true
+          RESUMO=$(cat resumo.txt 2>/dev/null | tail -c 3500)
+          if [ "${{ job.status }}" != "success" ]; then
+            gh api repos/$R/issues/$N/labels -f "labels[]=cora:erro" >/dev/null
+            gh api repos/$R/issues/$N/comments -f body="Não consegui concluir. ${RESUMO:-Veja os detalhes na aba Actions do GitHub.}" >/dev/null
+          elif [ -n "$SEM_MUDANCA" ]; then
+            gh api repos/$R/issues/$N/labels -f "labels[]=cora:sem-mudanca" >/dev/null
+            gh api repos/$R/issues/$N/comments -f body="Não alterei nada. $RESUMO" >/dev/null
+          else
+            gh api repos/$R/issues/$N/labels -f "labels[]=cora:pronto" >/dev/null
+            gh api repos/$R/issues/$N/comments -f body="Prévia pronta no site de teste: ${{ vars.SITE_TESTE }} (aguarde 1 minuto para atualizar).
+
+          $RESUMO" >/dev/null
+          fi

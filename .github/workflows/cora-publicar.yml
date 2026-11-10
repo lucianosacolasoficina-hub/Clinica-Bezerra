@@ -1,0 +1,48 @@
+# Cora: leva para o sistema de verdade uma mudança que a administradora aprovou no site de teste.
+name: Cora · publicar mudança
+on:
+  workflow_dispatch:
+    inputs:
+      issue: { description: Número do pedido, required: true }
+concurrency: { group: cora, cancel-in-progress: false }
+permissions: { contents: write, issues: write }
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      N: ${{ inputs.issue }}
+      R: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Junta a mudança ao sistema
+        run: |
+          [[ "$N" =~ ^[0-9]+$ ]] || exit 1
+          gh api repos/$R/issues/$N --jq '.labels[].name' | grep -qx 'cora:pronto' || { echo "Pedido não está pronto para publicar"; exit 1; }
+          git fetch -q origin cora/$N
+          TITULO=$(gh api repos/$R/issues/$N --jq .title)
+          git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" merge -q --squash origin/cora/$N
+          python3 build.py
+          git add -A
+          git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" commit -q -m "Cora: $TITULO (#$N)"
+          git push -q origin HEAD:main
+          echo "SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+      - name: Publica no site
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{}' \
+            https://api.render.com/v1/services/${{ vars.RENDER_SITE_ID }}/deploys >/dev/null
+      - name: Avisa
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            gh api -X DELETE repos/$R/issues/$N/labels/cora:pronto >/dev/null 2>&1 || true
+            gh api repos/$R/issues/$N/labels -f "labels[]=cora:publicado" >/dev/null
+            gh api repos/$R/issues/$N/comments -f body="Publicado no sistema (versão $SHA). Em cerca de 1 minuto todos veem a mudança. Para voltar atrás, use Desfazer na Cora." >/dev/null
+            gh api -X PATCH repos/$R/issues/$N -f state=closed >/dev/null
+            git push -q origin --delete cora/$N || true
+          else
+            gh api repos/$R/issues/$N/comments -f body="Não consegui publicar. Veja os detalhes na aba Actions do GitHub." >/dev/null
+          fi

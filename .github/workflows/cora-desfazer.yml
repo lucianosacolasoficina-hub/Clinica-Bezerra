@@ -1,0 +1,42 @@
+# Cora: desfaz uma mudança já publicada, voltando o sistema à versão anterior.
+name: Cora · desfazer mudança
+on:
+  workflow_dispatch:
+    inputs:
+      issue: { description: Número do pedido, required: true }
+concurrency: { group: cora, cancel-in-progress: false }
+permissions: { contents: write, issues: write }
+jobs:
+  desfazer:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      N: ${{ inputs.issue }}
+      R: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Desfaz
+        run: |
+          [[ "$N" =~ ^[0-9]+$ ]] || exit 1
+          SHA=$(git log --format=%H --grep="^Cora: .*(#$N)$" -n 1 main)
+          test -n "$SHA" || { echo "Não achei a mudança publicada"; exit 1; }
+          git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" revert --no-edit "$SHA"
+          python3 build.py && git add -A && (git diff --cached --quiet || git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" commit -q -m "Atualiza site após desfazer #$N")
+          git push -q origin HEAD:main
+      - name: Publica no site
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{}' \
+            https://api.render.com/v1/services/${{ vars.RENDER_SITE_ID }}/deploys >/dev/null
+      - name: Avisa
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            gh api -X DELETE repos/$R/issues/$N/labels/cora:publicado >/dev/null 2>&1 || true
+            gh api repos/$R/issues/$N/labels -f "labels[]=cora:desfeito" >/dev/null
+            gh api repos/$R/issues/$N/comments -f body="Mudança desfeita. O sistema voltou à versão anterior." >/dev/null
+          else
+            gh api repos/$R/issues/$N/comments -f body="Não consegui desfazer automaticamente. Veja a aba Actions do GitHub." >/dev/null
+          fi

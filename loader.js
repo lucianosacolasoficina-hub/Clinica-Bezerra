@@ -9,6 +9,19 @@ const OBJ = ['clinica','perms','online','fidel'];
 const snap = new Map();
 const q$ = s => document.querySelector(s);
 
+/* ---------- site de teste: faixa de aviso ---------- */
+if (/-teste\./.test(location.hostname)) document.body.insertAdjacentHTML('afterbegin', '<div style="position:sticky;top:0;z-index:60;background:#b03a3a;color:#fff;text-align:center;font:600 13px/1.4 system-ui,sans-serif;padding:7px 12px">SITE DE TESTE · mostra uma mudança antes de ser aprovada. Os dados são os reais da clínica: confira, mas não use para o trabalho do dia.</div>');
+
+/* ---------- Cora: pedidos de mudança no sistema (passam pelo servidor, só administradora) ---------- */
+window.CORA_DEV = async (acao, dados = {}) => {
+  const { data: { session } } = await comPrazo(sb.auth.getSession());
+  if (!session) throw new Error('Sessão expirada. Entre de novo.');
+  const r = await comPrazo(fetch(CB.url + '/functions/v1/cora-dev', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.access_token, apikey: CB.key }, body: JSON.stringify({ acao, ...dados }) }), 20000);
+  const j = await r.json().catch(() => ({ erro: 'O serviço de mudanças não respondeu (ainda não foi instalado?).' }));
+  if (!r.ok || j.erro) throw new Error(j.erro || ('Erro ' + r.status));
+  return j;
+};
+
 /* ---------- download de arquivos (PDF) ---------- */
 window.DL = { save({ filename, data }) {
   const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });

@@ -1210,6 +1210,44 @@ window.campSend=el=>{const p=P(el.dataset.pid);el.href=wa(p.tel,campMsg.replaceA
 window.go=go;
 try{const v=localStorage.getItem('cb-view');if(v)view=v}catch(e){}
 userBox();render();if(db.__novo){delete db.__novo;save();setTimeout(()=>{toast('Sistema criado. Cadastre a equipe em Administração');go('admin')},400)}
+/* ---------- Cora: pedidos de mudança no sistema (só administradora; a IA faz, testa e mostra num site de teste) ---------- */
+const MUD_ST={fila:['Na fila','agendado'],andamento:['Fazendo','confirmado'],pronto:['Prévia pronta','realizado'],publicado:['Publicado','pago'],desfeito:['Desfeito','agendado'],descartado:['Descartado','cancelado'],erro:['Não deu certo','cancelado'],'sem-mudanca':['Sem mudança','agendado']};
+const linkar=t=>esc(t).replace(/https?:\/\/[^\s<]+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u}</a>`).replace(/\n/g,'<br>');
+let mudTimer=null;
+window.coraMudancas=async(msg)=>{
+  if(!can('admin','editar')){toast('Só a administradora pode pedir mudanças no sistema');return}
+  coraFecha();clearTimeout(mudTimer);
+  const corpo=lista=>`<div class="detail"><p class="hint" style="margin:0">Descreva o que quer mudar. A Cora faz a alteração, testa e mostra num <b>site de teste</b>. Só vai para o sistema quando você clicar em Publicar.</p>
+    <form id="mud-f" style="display:flex;flex-direction:column;gap:8px"><textarea id="mud-t" rows="3" placeholder="Ex.: Na ficha da paciente, criar o campo Alergias logo abaixo do telefone" required minlength="8" maxlength="4000"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="mud-s" type="password" placeholder="Sua senha para confirmar" autocomplete="current-password" style="flex:1;min-width:180px" required><button class="btn">Enviar pedido</button></div></form>
+    ${msg?`<p class="hint" style="margin:0;color:var(--bad)">${esc(msg)}</p>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:15px">Pedidos</h3><button class="btn ghost sm" onclick="coraMudancas()">Atualizar</button></div>
+    <div class="list">${lista}</div></div>`;
+  modal('Mudanças no sistema',corpo('<div class="empty">Carregando…</div>'),true);
+  const ligar=()=>{const f=$('#mud-f');if(f)f.onsubmit=async e=>{e.preventDefault();const b=f.querySelector('button');b.disabled=true;
+    try{if(!window.CORA_DEV)throw new Error('Disponível só no sistema online.');if(!(await confirmaSenha($('#mud-s').value)))throw new Error('Senha incorreta.');
+      await CORA_DEV('pedir',{texto:$('#mud-t').value});log('Pediu mudança no sistema: '+$('#mud-t').value.slice(0,80));toast('Pedido enviado. A prévia fica pronta em alguns minutos.');coraMudancas()}
+    catch(err){coraMudancas(err.message)}}};
+  ligar();
+  if(!window.CORA_DEV){$('#dlg .list').innerHTML='<div class="empty">Os pedidos de mudança funcionam no sistema online (clinica-bezerra.onrender.com).</div>';return}
+  let r;try{r=await CORA_DEV('listar')}catch(err){if(dlg.open&&$('#mud-f'))$('#dlg .list').innerHTML=`<div class="empty">${esc(err.message)}</div>`;return}
+  if(!dlg.open||!$('#mud-f'))return;
+  const ps=r.pedidos||[];
+  $('#dlg .list').innerHTML=ps.length?ps.map(x=>{const [nm,cl]=MUD_ST[x.estado]||[x.estado,'agendado'];
+    return `<div class="row" style="align-items:flex-start;flex-wrap:wrap"><div class="grow" style="min-width:220px"><b>${esc(x.titulo)}</b><span>Pedido ${x.n} · ${new Date(x.criado).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}${x.por?' · '+esc(x.por.replace(/\s*\(.*\)$/,'')):''}</span>
+      ${x.ultimo?`<div class="hint" style="margin-top:4px;max-height:140px;overflow:auto">${linkar(x.ultimo)}</div>`:''}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><span class="pill p-${cl}">${nm}</span>
+      ${x.estado==='pronto'?`<a class="btn ghost sm" href="${esc(r.site_teste)}" target="_blank" rel="noopener">Ver no teste</a><button class="btn sm" onclick="mudAcao('publicar',${x.n})">Publicar</button><button class="btn ghost sm" onclick="mudAcao('descartar',${x.n})">Descartar</button>`:''}
+      ${x.estado==='publicado'?`<button class="btn ghost sm" onclick="mudAcao('desfazer',${x.n})">Desfazer</button>`:''}
+      ${['erro','sem-mudanca'].includes(x.estado)?`<button class="btn ghost sm" onclick="mudAcao('descartar',${x.n})">Arquivar</button>`:''}</div></div>`}).join(''):'<div class="empty">Nenhum pedido ainda.</div>';
+  if(ps.some(x=>['fila','andamento'].includes(x.estado)))mudTimer=setTimeout(()=>{if(dlg.open&&$('#mud-f')&&!$('#mud-t').value)coraMudancas()},20000);
+};
+window.mudAcao=async(acao,n)=>{
+  const txt={publicar:'Publicar esta mudança no sistema? Todos passam a ver em cerca de 1 minuto.',desfazer:'Desfazer esta mudança e voltar o sistema à versão anterior?',descartar:'Descartar este pedido?'}[acao];
+  modal({publicar:'Publicar mudança',desfazer:'Desfazer mudança',descartar:'Descartar pedido'}[acao],`<form class="detail" id="mud-c"><p style="margin:0">${txt}</p><input id="mud-cs" type="password" placeholder="Sua senha para confirmar" autocomplete="current-password" required><div class="toolbar" style="margin:0"><button type="button" class="btn ghost" onclick="coraMudancas()">Voltar</button><button class="btn">${{publicar:'Publicar',desfazer:'Desfazer',descartar:'Descartar'}[acao]}</button></div></form>`);
+  $('#mud-c').onsubmit=async e=>{e.preventDefault();try{if(!(await confirmaSenha($('#mud-cs').value)))throw new Error('Senha incorreta.');await CORA_DEV(acao,{n});log({publicar:'Publicou',desfazer:'Desfez',descartar:'Descartou'}[acao]+' a mudança '+n);
+    toast({publicar:'Publicando. Em cerca de 2 minutos recarregue a página para ver.',desfazer:'Desfazendo. Em cerca de 2 minutos recarregue a página.',descartar:'Pedido descartado.'}[acao]);coraMudancas()}catch(err){coraMudancas(err.message)}};
+};
 /* ---------- Cora, assistente da clínica (funciona sem internet e sem IA: lê os dados do próprio sistema) ---------- */
 const NORM=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 const SEMANA=['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
@@ -1296,7 +1334,8 @@ const CORA_SUG=['Horários livres hoje','Agenda de amanhã','Retornos pendentes'
 function coraResponde(txt){
   const t=NORM(txt).trim();
   if(!t||/^(oi|ola|bom dia|boa tarde|boa noite|ajuda|help|o que voce faz|\?)\b/.test(t)&&t.length<25)
-    return `Oi, ${esc(primeiro(ME()))}! Sou a Cora, a assistente da clínica. Posso te ajudar com:<ul><li>horários livres (ex.: "vagas sexta com a Carla para limpeza de pele")</li><li>a agenda de um dia</li><li>a ficha resumida de uma paciente (é só digitar o nome)</li><li>retornos, aniversariantes e faltas</li><li>estoque vencendo e faturamento do mês</li></ul>`;
+    return `Oi, ${esc(primeiro(ME()))}! Sou a Cora, a assistente da clínica. Posso te ajudar com:<ul><li>horários livres (ex.: "vagas sexta com a Carla para limpeza de pele")</li><li>a agenda de um dia</li><li>a ficha resumida de uma paciente (é só digitar o nome)</li><li>retornos, aniversariantes e faltas</li><li>estoque vencendo e faturamento do mês</li>${can('admin','editar')?'<li>mudanças no próprio sistema (ex.: "criar campo Alergias na ficha")</li>':''}</ul>`;
+  if(/^(mudar|mude|muda|alterar|altere|criar|crie|colocar|coloque|tirar|tire|remover|remova|adicionar|adicione|trocar|troque)\b.*\b(sistema|botao|botoes|menu|campo|tela|cor|cores|aba|ficha|layout|aparencia|espaco|secao)\b/.test(t)){if(!can('admin','editar'))return 'Mudanças no sistema só podem ser pedidas pela administradora.';setTimeout(()=>{coraMudancas();const x=$('#mud-t');if(x)x.value=txt},50);return 'Abri a tela de mudanças com o seu pedido. Confirme a senha e envie.'}
   if(/livre|vaga|disponiv|encaixe|encaixar|tem horario|horarios/.test(t))return coraLivres(t);
   if(/retorno/.test(t))return coraRetornos();
   if(/aniversari|parabens/.test(t))return coraAniv(t);
@@ -1310,7 +1349,7 @@ function coraResponde(txt){
   return 'Ainda não sei responder isso. Tente uma destas perguntas, ou digite o nome de uma paciente para ver a ficha resumida.'}
 let coraHist=[];
 function coraDesenha(){const b=$('#cora-msgs');if(!b)return;
-  b.innerHTML=coraHist.map(m=>`<div class="cora-m ${m.eu?'eu':''}">${m.eu?esc(m.t):m.t}</div>`).join('')+`<div class="cora-chips sug">${CORA_SUG.map(s=>`<button onclick="coraEnvia('${s}')">${s}</button>`).join('')}</div>`;
+  b.innerHTML=coraHist.map(m=>`<div class="cora-m ${m.eu?'eu':''}">${m.eu?esc(m.t):m.t}</div>`).join('')+`<div class="cora-chips sug">${CORA_SUG.map(s=>`<button onclick="coraEnvia('${s}')">${s}</button>`).join('')}${can('admin','editar')?'<button onclick="coraMudancas()">Mudar o sistema</button>':''}</div>`;
   b.scrollTop=b.scrollHeight}
 window.coraEnvia=txt=>{txt=String(txt||'').trim();if(!txt)return;coraHist.push({eu:true,t:txt});let r;try{r=coraResponde(txt)}catch(e){r='Tive um problema para responder isso. Tente de outro jeito.'}coraHist.push({t:r});coraHist=coraHist.slice(-30);coraDesenha();const i=$('#cora-in');if(i){i.value='';i.focus()}};
 window.coraAbre=()=>{const p=$('#cora');p.hidden=false;$('#cora-btn').setAttribute('aria-expanded','true');if(!coraHist.length)coraHist.push({t:coraResponde('oi')});coraDesenha();setTimeout(()=>$('#cora-in').focus(),50)};
@@ -1331,6 +1370,19 @@ const ARR = ['procs','pacientes','ag','fin','evol','colab','forn','estoque','mov
 const OBJ = ['clinica','perms','online','fidel'];
 const snap = new Map();
 const q$ = s => document.querySelector(s);
+
+/* ---------- site de teste: faixa de aviso ---------- */
+if (/-teste\./.test(location.hostname)) document.body.insertAdjacentHTML('afterbegin', '<div style="position:sticky;top:0;z-index:60;background:#b03a3a;color:#fff;text-align:center;font:600 13px/1.4 system-ui,sans-serif;padding:7px 12px">SITE DE TESTE · mostra uma mudança antes de ser aprovada. Os dados são os reais da clínica: confira, mas não use para o trabalho do dia.</div>');
+
+/* ---------- Cora: pedidos de mudança no sistema (passam pelo servidor, só administradora) ---------- */
+window.CORA_DEV = async (acao, dados = {}) => {
+  const { data: { session } } = await comPrazo(sb.auth.getSession());
+  if (!session) throw new Error('Sessão expirada. Entre de novo.');
+  const r = await comPrazo(fetch(CB.url + '/functions/v1/cora-dev', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + session.access_token, apikey: CB.key }, body: JSON.stringify({ acao, ...dados }) }), 20000);
+  const j = await r.json().catch(() => ({ erro: 'O serviço de mudanças não respondeu (ainda não foi instalado?).' }));
+  if (!r.ok || j.erro) throw new Error(j.erro || ('Erro ' + r.status));
+  return j;
+};
 
 /* ---------- download de arquivos (PDF) ---------- */
 window.DL = { save({ filename, data }) {
