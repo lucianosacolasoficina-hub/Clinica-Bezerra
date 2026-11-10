@@ -3,8 +3,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>try{var t=localStorage.getItem("cb-tema")||"classico";document.documentElement.dataset.tema=t;document.documentElement.dataset.theme=t==="noite"?"dark":"light"}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&family=Cormorant+Garamond:wght@500;600&display=swap">
 <style>
 /* Layout: barra lateral fixa de módulos + área de trabalho; no celular a barra vira abas no topo */
 :root{
@@ -202,6 +203,94 @@ label.chk input{width:auto;flex:none}
   form.f,.facts{grid-template-columns:1fr}
   .hide-sm{display:none}
 }
+/* ---------- agenda em grade ---------- */
+.ag-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{all:unset;cursor:pointer;padding:7px 13px;font-weight:500;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.seg button:hover:not([aria-pressed="true"]){background:var(--surface-2);color:var(--fg)}
+.ag-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.ag-grid{display:grid;grid-template-columns:52px repeat(var(--cols),minmax(130px,1fr));min-width:fit-content}
+.ag-corner,.ag-colh{position:sticky;top:0;z-index:3;background:var(--surface);border-bottom:1px solid var(--line)}
+.ag-colh{padding:9px 8px;text-align:center;border-left:1px solid var(--line);font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;text-transform:capitalize}
+.ag-colh b{font-weight:600}.ag-colh span{font-family:var(--f-display);font-size:19px;font-weight:600;width:100%}
+.ag-colh.hoje{color:var(--accent)}.ag-colh.hoje span{color:var(--accent)}
+.ag-horas{position:relative;grid-column:1}
+.ag-horas span{position:absolute;right:6px;transform:translateY(-50%);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ag-horas span:first-child{transform:none}
+.ag-col{position:relative;border-left:1px solid var(--line)}
+.ag-col.hoje{background:color-mix(in srgb,var(--accent-soft) 35%,transparent)}
+.ag-slot{all:unset;position:absolute;left:0;right:0;box-sizing:border-box;border-top:1px dashed color-mix(in srgb,var(--line) 60%,transparent);cursor:cell}
+.ag-slot.cheia{border-top:1px solid var(--line)}
+.ag-slot:hover{background:var(--surface-2)}
+.ag-slot:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ag-agora{position:absolute;left:0;right:0;border-top:2px solid var(--bad);z-index:2;pointer-events:none}
+.ag-agora::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--bad)}
+.ag-ev{all:unset;box-sizing:border-box;position:absolute;z-index:1;cursor:pointer;overflow:hidden;border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.3;border-left:4px solid var(--pc);background:var(--surface-2);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ag-ev b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-ev span{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11.5px}
+.ag-ev .pf .dot{width:7px;height:7px;margin-right:4px}
+.ag-ev:hover{filter:brightness(.97);z-index:2}.ag-ev:focus-visible{outline:2px solid var(--accent)}
+.st-agendado{--sb:var(--surface-2);--sf:var(--muted)}
+.st-confirmado{--sb:var(--accent-soft);--sf:var(--accent)}
+.st-realizado{--sb:var(--ok-soft);--sf:var(--ok)}
+.st-faltou{--sb:var(--warn-soft);--sf:var(--warn)}
+.st-cancelado{--sb:var(--bad-soft);--sf:var(--bad)}
+.ag-ev[class*="st-"]{background:var(--sb)}
+.ag-ev.st-cancelado,.ag-mini.st-cancelado{opacity:.6}.ag-ev.st-cancelado b{text-decoration:line-through}
+.ag-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:12.5px;align-items:center}
+.ag-leg span{display:inline-flex;align-items:center;gap:6px}
+.ag-leg i{width:12px;height:12px;border-radius:3px;background:var(--sb);border:1.5px solid var(--sf)}
+.ag-mes{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ag-mes-h,.ag-mes-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.ag-mes-h span{padding:8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:center;border-bottom:1px solid var(--line)}
+.ag-dia{min-height:104px;padding:5px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.ag-dia:nth-child(7n){border-right:0}.ag-dia.fora{background:var(--bg);opacity:.6}
+.ag-num{all:unset;cursor:pointer;font-weight:600;font-size:13px;width:26px;height:26px;display:grid;place-items:center;border-radius:50%}
+.ag-num:hover{background:var(--surface-2)}.ag-dia.hoje .ag-num{background:var(--accent);color:var(--accent-fg)}
+.ag-mini{all:unset;cursor:pointer;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 5px;background:var(--sb)}
+.ag-mini .dot{width:6px;height:6px;margin-right:4px}
+.ag-mais{all:unset;cursor:pointer;font-size:11.5px;color:var(--accent);font-weight:600;padding:0 5px}
+[data-tema="rose"] .ag-ev{border-radius:12px;border-left-width:5px}
+[data-tema="rose"] .seg{border-radius:99px}
+[data-tema="noite"] .ag-ev{border-radius:3px;border-left-width:3px}
+[data-tema="noite"] .ag-colh span{color:var(--gold)}
+@media (max-width:720px){.ag-dia{min-height:64px;padding:3px}.ag-mini{font-size:0;padding:0;height:6px;background:var(--sf)}.ag-mini .dot{display:none}.ag-num{font-size:12px;width:22px;height:22px}.ag-grid{grid-template-columns:44px repeat(var(--cols),minmax(110px,1fr))}}
+/* ---------- aparências (Clássico é o padrão acima) ---------- */
+:root[data-tema="rose"]{--bg:#faf5f2;--surface:#fffdfb;--surface-2:#f7ede8;--fg:#3b2b2a;--muted:#86706b;--line:#eddcd5;
+  --accent:#a95a52;--accent-soft:#f6e0da;--accent-fg:#fff;--gold:#b0834f;--gold-soft:#f5e8da;
+  --ok:#3f7d55;--ok-soft:#e1efe4;--warn:#9a6a12;--warn-soft:#f7ebcf;--bad:#b03a3a;--bad-soft:#f6dddd;
+  --f-display:"Playfair Display",Georgia,serif;--r:16px;color-scheme:light}
+:root[data-tema="noite"]{--bg:#121214;--surface:#1b1b1f;--surface-2:#26262c;--fg:#ece8e1;--muted:#a39e95;--line:#33333a;
+  --accent:#d4b06a;--accent-soft:#3a3222;--accent-fg:#17130b;--gold:#d4b06a;--gold-soft:#2e2819;
+  --ok:#7fc79a;--ok-soft:#1d3326;--warn:#e5b860;--warn-soft:#382e18;--bad:#ef8a8a;--bad-soft:#3b2222;
+  --f-display:"Cormorant Garamond",Georgia,serif;--r:6px;color-scheme:dark}
+[data-tema="rose"] .btn,[data-tema="rose"] nav button{border-radius:99px}
+[data-tema="rose"] .head h1{font-weight:500;font-size:31px}
+[data-tema="rose"] .day{border-radius:18px;border-color:transparent;box-shadow:0 1px 4px rgba(120,70,60,.08)}
+[data-tema="rose"] .day.today{background:var(--accent-soft)}
+[data-tema="rose"] .day h3 b{font-family:var(--f-display);font-size:25px;font-weight:500}
+[data-tema="rose"] .appt{border-left-width:6px;border-radius:12px;padding:8px 10px;background:var(--surface-2)}
+[data-tema="rose"] .day.today .appt{background:var(--surface)}
+[data-tema="noite"] .head h1{font-weight:500;font-size:36px;letter-spacing:.01em}
+[data-tema="noite"] h2,[data-tema="noite"] h3{font-weight:600}
+[data-tema="noite"] nav button[aria-current="true"]{background:transparent;color:var(--gold);box-shadow:inset 2px 0 0 var(--gold);border-radius:0}
+[data-tema="noite"] .brand b{font-family:var(--f-display);font-size:25px;font-weight:600}
+[data-tema="noite"] .day{border-radius:4px}
+[data-tema="noite"] .day.today{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+[data-tema="noite"] .day h3{text-transform:uppercase;letter-spacing:.14em;font-size:11px}
+[data-tema="noite"] .day h3 b{font-family:var(--f-display);font-size:30px;color:var(--gold);letter-spacing:0;font-weight:600}
+[data-tema="noite"] .appt{border-left-width:0;border-top:2px solid var(--accent);border-radius:3px;padding:7px 9px}
+.tema-btn{all:unset;cursor:pointer;font-size:12.5px;color:var(--muted);padding:4px 12px}
+.tema-btn:hover{color:var(--fg)}
+.temas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tema{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px}
+.tema.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tema b{font-size:14px}.tema small{color:var(--muted);font-size:12px;line-height:1.4}
+.tprev{display:grid;grid-template-columns:22px 1fr 1fr;gap:5px;height:84px;border-radius:8px;padding:7px;border:1px solid rgba(0,0,0,.08)}
+.tprev u{border-radius:4px}.tprev s{display:flex;flex-direction:column;gap:4px;text-decoration:none}.tprev s i{display:block;height:15px}
+@media (max-width:720px){.temas{grid-template-columns:1fr}.tema-btn{flex:none;padding:4px 6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -222,6 +311,7 @@ label.chk input{width:auto;flex:none}
       <button data-v="importar">Importar dados</button>
       <button data-v="admin">Administração</button>
     </nav>
+    <button class="tema-btn" onclick="escolherTema()">Aparência</button>
     <div class="me" id="me"></div>
     <div class="demo-note">Protótipo com dados de exemplo. O que você cadastrar fica salvo só neste navegador.<br><button id="reset">Restaurar exemplos</button></div>
   </aside>
@@ -323,7 +413,7 @@ function painel(){
     <div class="kpi"><small>A receber</small><b>${BRL(aReceber)}</b><span>pagamentos pendentes</span></div>`:`<div class="kpi"><small>Pacientes</small><b>${db.pacientes.length}</b><span>cadastrados</span></div><div class="kpi"><small>Retornos pendentes</small><b>${ret.length}</b><span>sem horário marcado</span></div>`}
   </div>
   <div class="grid two">
-    <div class="panel"><h2>Agenda de hoje <button class="link" onclick="go('agenda')">Ver semana</button></h2>
+    <div class="panel"><h2>Agenda de hoje <button class="link" onclick="agView='dia';agRef=T;go('agenda')">Ver agenda do dia</button></h2>
       <div class="list">${hoje.length?hoje.map(a=>`<div class="row"><div class="time">${a.hora}</div><div class="grow"><b>${esc(P(a.pac).nome)}</b><span>${esc(PR(a.proc).nome)} · ${esc(a.prof)}</span></div>${pill(a.status)}<button class="btn ghost sm" onclick="verAg('${a.id}')">Abrir</button></div>`).join(''):'<div class="empty">Nenhum atendimento hoje.</div>'}</div></div>
     <div class="panel"><h2>Retornos a agendar</h2>
       <div class="list">${ret.slice(0,5).map(x=>`<div class="row"><div class="grow"><b>${esc(x.p.nome)}</b><span>${esc(PR(x.ult.proc).nome)} em ${fmtD(x.ult.data)} · retorno ${x.r<T?'<b style="display:inline;color:var(--bad)">atrasado</b>':'em '+fmtD(x.r)}</span></div><button class="btn ghost sm" onclick="formAg(null,'${x.p.id}','${x.ult.proc}')">Agendar</button></div>`).join('')||'<div class="empty">Todos os pacientes estão com retorno marcado.</div>'}</div></div>
@@ -331,14 +421,69 @@ function painel(){
   <div class="panel" style="margin-top:16px"><h2>Procedimentos que mais faturaram</h2>
     <div class="rank">${top.map(([id,v])=>`<div><div class="lbl"><b>${esc(PR(id).nome)}</b><span>${BRL(v)}</span></div><div class="bar"><i style="width:${(v/mx*100).toFixed(1)}%"></i></div></div>`).join('')||'<div class="empty">Ainda sem atendimentos realizados.</div>'}</div></div>`;
 }
+let agView='semana',agRef=T,agProf='';
+try{agView=localStorage.getItem('cb-agview')||(innerWidth<720?'dia':'semana')}catch(e){}
+const MIN=h=>{const[a,b]=h.split(':').map(Number);return a*60+b};
+const HM=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const corProf=n=>(db.colab.find(c=>(c.exib||c.nome)===n)||{}).cor||'#888888';
+const agDur=a=>(PR(a.proc)||{}).dur||30;
+const ST_NOME={agendado:'Agendado',confirmado:'Confirmado',realizado:'Realizado',faltou:'Faltou',cancelado:'Cancelado'};
+window.agIr=(v,ref,prof)=>{if(v){agView=v;try{localStorage.setItem('cb-agview',v)}catch(e){}}if(ref)agRef=ref;if(prof!==undefined)agProf=prof;render()};
+window.agPasso=n=>{const d=new Date(agRef+'T12:00');if(agView==='dia')d.setDate(d.getDate()+n);else if(agView==='semana')d.setDate(d.getDate()+7*n);else{d.setDate(1);d.setMonth(d.getMonth()+n)}agRef=iso(d);render()};
+window.agNovo=(data,hora,prof)=>formAg(null,'','',{data,hora,prof});
+function agLanes(list){ // distribui atendimentos que se sobrepõem lado a lado
+  const it=list.map(a=>({a,i:MIN(a.hora),f:MIN(a.hora)+agDur(a)})).sort((x,y)=>x.i-y.i||y.f-x.f);
+  let grupo=[],fimG=-1;const out=[];
+  const fecha=()=>{const n=Math.max(1,...grupo.map(g=>g.l+1));grupo.forEach(g=>{g.n=n;out.push(g)});grupo=[]};
+  it.forEach(x=>{if(x.i>=fimG&&grupo.length)fecha();const ocup=grupo.filter(g=>g.f>x.i).map(g=>g.l);let l=0;while(ocup.includes(l))l++;x.l=l;grupo.push(x);fimG=Math.max(fimG,x.f)});
+  if(grupo.length)fecha();return out}
+function agGrade(cols){ // cols: [{tit,sub,data,prof,hoje,itens}]
+  const on=db.online||{};const todos=cols.flatMap(c=>c.itens);
+  let ini=Math.min(MIN(on.inicio||'08:00'),480,...todos.map(a=>MIN(a.hora)));ini=Math.floor(ini/60)*60;
+  let fim=Math.max(MIN(on.fim||'19:00'),1140,...todos.map(a=>MIN(a.hora)+agDur(a)));fim=Math.ceil(fim/60)*60;
+  const H=22,linhas=(fim-ini)/30,agora=new Date(),mAgora=agora.getHours()*60+agora.getMinutes();
+  return `<div class="ag-wrap"><div class="ag-grid" style="--cols:${cols.length};--h:${H}px">
+   <div class="ag-corner"></div>${cols.map(c=>`<div class="ag-colh${c.hoje?' hoje':''}">${c.cor?`<i class="dot" style="background:${esc(c.cor)}"></i>`:''}<b>${esc(c.tit)}</b>${c.sub?`<span>${esc(c.sub)}</span>`:''}</div>`).join('')}
+   <div class="ag-horas" style="height:${linhas*H}px">${[...Array(linhas/2)].map((_,k)=>`<span style="top:${k*2*H}px">${HM(ini+k*60)}</span>`).join('')}</div>
+   ${cols.map(c=>`<div class="ag-col${c.hoje?' hoje':''}" style="height:${linhas*H}px">
+     ${[...Array(linhas)].map((_,k)=>`<button class="ag-slot${k%2?'':' cheia'}" style="top:${k*H}px;height:${H}px" aria-label="Agendar ${fmtD(c.data)} ${HM(ini+k*30)}" onclick="agNovo('${c.data}','${HM(ini+k*30)}','${esc(c.prof||'')}')"></button>`).join('')}
+     ${c.hoje&&mAgora>=ini&&mAgora<=fim?`<div class="ag-agora" style="top:${(mAgora-ini)/30*H}px"></div>`:''}
+     ${agLanes(c.itens).map(g=>{const a=g.a,h=Math.max(H-2,(g.f-g.i)/30*H-2);return `<button class="ag-ev st-${a.status}" style="top:${(g.i-ini)/30*H+1}px;height:${h}px;left:calc(${g.l}/${g.n}*100% + 2px);width:calc(100%/${g.n} - 4px);--pc:${esc(corProf(a.prof))}" onclick="verAg('${a.id}')" title="${esc(a.hora+' · '+P(a.pac).nome+' · '+PR(a.proc).nome+' · '+a.prof+' · '+ST_NOME[a.status])}">
+       <b>${a.hora} ${esc(P(a.pac).nome)}</b>${h>30?`<span>${esc(PR(a.proc).nome)}</span>`:''}${h>48&&!c.prof?`<span class="pf"><i class="dot" style="background:var(--pc)"></i>${esc(a.prof)}</span>`:''}</button>`}).join('')}
+   </div>`).join('')}</div></div>`}
+function agMes(itens){
+  const r=new Date(agRef+'T12:00'),y=r.getFullYear(),m=r.getMonth(),primeiro=new Date(y,m,1),off=(primeiro.getDay()+6)%7,ini=addDays(primeiro,-off);
+  const sem=['seg','ter','qua','qui','sex','sáb','dom'];
+  return `<div class="ag-mes"><div class="ag-mes-h">${sem.map(d=>`<span>${d}</span>`).join('')}</div><div class="ag-mes-g">${[...Array(42)].map((_,k)=>{const d=addDays(ini,k),s=iso(d),l=itens.filter(a=>a.data===s).sort((a,b)=>a.hora.localeCompare(b.hora));
+    return `<div class="ag-dia${d.getMonth()!==m?' fora':''}${s===T?' hoje':''}"><button class="ag-num" onclick="agIr('dia','${s}')">${d.getDate()}</button>
+    ${l.slice(0,3).map(a=>`<button class="ag-mini st-${a.status}" style="--pc:${esc(corProf(a.prof))}" onclick="verAg('${a.id}')"><i class="dot" style="background:var(--pc)"></i>${a.hora} ${esc(P(a.pac).nome.split(' ')[0])}</button>`).join('')}
+    ${l.length>3?`<button class="ag-mais" onclick="agIr('dia','${s}')">+${l.length-3} mais</button>`:''}</div>`}).join('')}</div></div>`}
 function agenda(){
-  const dow=TODAY.getDay();const mon=addDays(TODAY,(dow===0?-6:1-dow)+weekOff*7);
-  const days=[...Array(6)].map((_,i)=>addDays(mon,i));
-  return `<div class="head"><div><h1>Agenda</h1><p>Semana de ${days[0].toLocaleDateString('pt-BR')} a ${days[5].toLocaleDateString('pt-BR')}</p></div>
-    <div class="toolbar" style="margin:0"><button class="btn ghost" onclick="weekOff--;render()">‹ Anterior</button><button class="btn ghost" onclick="weekOff=0;render()">Hoje</button><button class="btn ghost" onclick="weekOff++;render()">Próxima ›</button><button class="btn" onclick="formAg()">Novo agendamento</button></div></div>
-  <div class="week">${days.map(d=>{const s=iso(d);const it=db.ag.filter(a=>a.data===s).sort((a,b)=>a.hora.localeCompare(b.hora));
-    return `<div class="day ${s===T?'today':''}"><h3>${d.toLocaleDateString('pt-BR',{weekday:'short'})}<b>${d.getDate()}</b></h3>
-    ${it.map(a=>`<button class="appt s-${a.status}" onclick="verAg('${a.id}')"><b>${a.hora} · ${esc(P(a.pac).nome)}</b><span>${esc(PR(a.proc).nome)}</span></button>`).join('')||'<div class="empty" style="font-size:12.5px">Livre</div>'}</div>`}).join('')}</div>`;
+  const profs=PROFS(),ref=new Date(agRef+'T12:00');let titulo,corpo;
+  const filtro=a=>!agProf||a.prof===agProf;
+  if(agView==='dia'){
+    const l=db.ag.filter(a=>a.data===agRef);const ps=agProf?[agProf]:(profs.length?profs:['Agenda']);
+    const extras=[...new Set(l.map(a=>a.prof))].filter(p=>!ps.includes(p)&&!agProf);
+    titulo=ref.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    corpo=agGrade([...ps,...extras].map(p=>({tit:p,cor:corProf(p),data:agRef,prof:p==='Agenda'?'':p,hoje:agRef===T,itens:l.filter(a=>p==='Agenda'||a.prof===p)})));
+  }else if(agView==='semana'){
+    const seg=addDays(ref,-((ref.getDay()+6)%7));const dias=[...Array(6)].map((_,k)=>addDays(seg,k));
+    titulo=`${dias[0].toLocaleDateString('pt-BR',{day:'numeric',month:'short'})} a ${dias[5].toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'})}`;
+    corpo=agGrade(dias.map(d=>{const s=iso(d);return{tit:d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.',''),sub:String(d.getDate()),data:s,prof:agProf,hoje:s===T,itens:db.ag.filter(a=>a.data===s&&filtro(a))}}));
+  }else{
+    titulo=ref.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});corpo=agMes(db.ag.filter(filtro));
+  }
+  const doDia=db.ag.filter(a=>a.data===agRef&&filtro(a)&&a.status!=='cancelado').length;
+  return `<div class="head"><div><h1>Agenda</h1><p>${titulo.charAt(0).toUpperCase()+titulo.slice(1)}</p></div><button class="btn" onclick="agNovo('${agRef}','09:00','${esc(agProf)}')">Novo agendamento</button></div>
+  <div class="ag-bar">
+    <div class="seg" role="group" aria-label="Visualização">${[['dia','Dia'],['semana','Semana'],['mes','Mês']].map(([v,n])=>`<button aria-pressed="${agView===v}" onclick="agIr('${v}')">${n}</button>`).join('')}</div>
+    <div class="seg"><button onclick="agPasso(-1)" aria-label="Anterior">‹</button><button onclick="agIr(null,'${T}')">Hoje</button><button onclick="agPasso(1)" aria-label="Próximo">›</button></div>
+    <input type="date" value="${agRef}" onchange="this.value&&agIr(null,this.value)" aria-label="Ir para a data" style="width:auto">
+    <select onchange="agIr(null,null,this.value)" aria-label="Profissional" style="width:auto"><option value="">Todos os profissionais</option>${opt(profs.map(p=>[p,p]),agProf)}</select>
+    ${agView==='dia'?`<span class="muted" style="font-size:13px">${doDia} ${doDia===1?'atendimento':'atendimentos'}</span>`:''}
+  </div>
+  ${corpo}
+  <div class="ag-leg">${Object.entries(ST_NOME).map(([k,n])=>`<span class="st-${k}"><i></i>${n}</span>`).join('')}<span class="muted">Clique num horário vazio para agendar.</span></div>`;
 }
 function pacientes(){
   const l=db.pacientes.filter(p=>(p.nome+p.tel).toLowerCase().includes(q.toLowerCase())).sort((a,b)=>a.nome.localeCompare(b.nome));
@@ -414,7 +559,7 @@ window.baixar=id=>{if(!need('financeiro'))return;const f=db.fin.find(x=>x.id===i
 const dlg=$('#dlg');
 function modal(title,body,wide){dlg.classList.toggle('wide',!!wide);dlg.innerHTML=`<div class="mhead"><h2>${title}</h2><button class="x" aria-label="Fechar" onclick="dlg.close()">×</button></div>${body}`;dlg.showModal()}
 const opt=(arr,sel)=>arr.map(([v,t])=>`<option value="${esc(v)}" ${v===sel?'selected':''}>${esc(t)}</option>`).join('');
-window.formAg=(id,pac,proc)=>{if(!need('agenda'))return;const a=id?db.ag.find(x=>x.id===id):{data:T,hora:'09:00',pac:pac||'',proc:proc||'',prof:PROFS()[0],status:'agendado'};
+window.formAg=(id,pac,proc,pre)=>{if(!need('agenda'))return;pre=pre||{};const a=id?db.ag.find(x=>x.id===id):{data:pre.data||T,hora:pre.hora||'09:00',pac:pac||'',proc:proc||'',prof:pre.prof||PROFS()[0],status:'agendado'};
   modal(id?'Editar agendamento':'Novo agendamento',`<form class="f" id="fa">
   <label class="full">Paciente<select id="a-pac" required><option value="">Escolha…</option>${opt(db.pacientes.map(p=>[p.id,p.nome]).sort((x,y)=>x[1].localeCompare(y[1])),a.pac)}</select></label>
   <label class="full">Procedimento<select id="a-proc" required><option value="">Escolha…</option>${opt(db.procs.map(p=>[p.id,p.nome+' · '+BRL(p.preco)]),a.proc)}</select></label>
@@ -678,6 +823,12 @@ const need=mod=>{if(can(mod,'editar'))return true;toast('Seu perfil não tem per
 function log(acao){db.log.unshift({q:new Date().toISOString(),u:ME().nome,perfil:PERFIS[ME().perfil],acao});db.log=db.log.slice(0,500);save()}
 const VIEWMOD={agenda:'agenda',pacientes:'pacientes',procedimentos:'procedimentos',financeiro:'financeiro',importar:'importar',admin:'admin'};
 
+const TEMAS=[
+ ['classico','Clássico','Verde-petróleo e dourado em fundo claro. Agenda com faixa colorida na lateral.',{bg:'#f3f5f4',sf:'#ffffff',ac:'#1f6f62',s2:'#eaefed',ap:'border-left:3px solid #1f6f62;border-radius:3px'}],
+ ['rose','Rosé','Tons nude e rosé, títulos com serifa e cantos arredondados. Agenda em cartões suaves.',{bg:'#faf5f2',sf:'#fffdfb',ac:'#a95a52',s2:'#f7ede8',ap:'border-left:5px solid #a95a52;border-radius:8px'}],
+ ['noite','Noite','Fundo escuro com dourado, elegante e confortável para os olhos. Agenda com destaque dourado.',{bg:'#121214',sf:'#1b1b1f',ac:'#d4b06a',s2:'#26262c',ap:'border-top:2px solid #d4b06a;border-radius:2px'}]];
+window.aplicaTema=t=>{const r=document.documentElement;r.dataset.tema=t;r.dataset.theme=t==='noite'?'dark':'light';try{localStorage.setItem('cb-tema',t)}catch(e){}};
+window.escolherTema=()=>{const cur=document.documentElement.dataset.tema||'classico';modal('Aparência do sistema',`<div class="detail"><div class="temas">${TEMAS.map(([id,n,d,c])=>`<button class="tema${id===cur?' on':''}" onclick="aplicaTema('${id}');escolherTema()" aria-pressed="${id===cur}"><span class="tprev" style="background:${c.bg}"><u style="background:${c.sf}"></u>${[0,1].map(()=>`<s style="background:${c.sf};padding:4px;border-radius:4px"><i style="background:${c.s2};${c.ap}"></i><i style="background:${c.s2};${c.ap}"></i></s>`).join('')}</span><b>${n}${id===cur?' · em uso':''}</b><small>${d}</small></button>`).join('')}</div><p class="hint" style="margin:0">A aparência escolhida vale para este computador ou celular. Cada pessoa pode usar a sua.</p></div>`,true)};
 function userBox(){const u=ME();$('#me').innerHTML=`<span class="av" style="background:${esc(u.cor)}">${esc(u.nome.split(' ').map(s=>s[0]).slice(0,2).join(''))}</span><span class="grow"><b>${esc(u.exib||u.nome)}</b><span>${PERFIS[u.perfil]}</span></span><button class="link" onclick="trocarUsuario()">Trocar</button>`}
 window.trocarUsuario=()=>{modal('Entrar como',`<form class="f" id="fl"><p class="full hint" style="margin:0">Cada pessoa da equipe entra com o próprio usuário. No protótipo os PINs são: Ana 1234, Carla 2222, Juliana 3333, Paula 4444, Marcos 5555.</p>
   <label class="full">Usuário<select id="l-u">${opt(db.colab.filter(c=>c.ativo).map(c=>[c.id,`${c.nome} · ${PERFIS[c.perfil]}`]),me)}</select></label>
