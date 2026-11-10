@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         const abertos = await gh(`/issues?labels=cora:andamento&state=open&per_page=5`);
         if (abertos.length >= 3) return resp({ erro: "Já há pedidos em andamento. Aguarde terminarem." }, 429);
         const titulo = texto.split("\n")[0].slice(0, 70);
-        const i = await gh(`/issues`, { method: "POST", body: JSON.stringify({ title: titulo, labels: ["cora"], body: `${texto}\n\n---\nPedido por: ${eu.nome} (${eu.email})` }) });
+        const i = await gh(`/issues`, { method: "POST", body: JSON.stringify({ title: titulo, labels: ["cora"], body: `${texto}\n\n---\nPedido por: ${eu.nome}` }) });
         return resp({ ok: true, n: i.number });
       }
       case "publicar":
