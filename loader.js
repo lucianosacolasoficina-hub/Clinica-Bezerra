@@ -1,7 +1,9 @@
 /* Clínica Bezerra · conexão com o banco (Supabase), login e sincronização */
 window.ONLINE = true;
 const CB = window.CB_CONFIG || {};
-const sb = window.supabase.createClient(CB.url, CB.key, { auth: { persistSession: true, autoRefreshToken: true } });
+// lock simples: a trava entre abas do navegador (navigator.locks) pode ficar presa e deixar o sistema parado em "Carregando…"
+const sb = window.supabase.createClient(CB.url, CB.key, { auth: { persistSession: true, autoRefreshToken: true, lock: (nome, espera, fn) => fn() } });
+const comPrazo = (p, ms = 15000) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('O servidor demorou para responder. Tente de novo.')), ms))]);
 const ARR = ['procs','pacientes','ag','fin','evol','colab','forn','estoque','mov','pacotes','termos','nf','camp'];
 const OBJ = ['clinica','perms','online','fidel'];
 const snap = new Map();
@@ -130,26 +132,26 @@ function aoVivo() {
 }
 
 /* ---------- início ---------- */
-window.sairSistema = async () => { await sb.auth.signOut(); location.reload(); };
+window.sairSistema = async () => { try { await comPrazo(sb.auth.signOut(), 5000); } catch (e) {} try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); };
 window.confirmaSenha = async (senha) => { const { error } = await sb.auth.signInWithPassword({ email: window.__USER.email, password: senha }); return !error; };
 let iniciado = false;
 async function iniciar() {
   if (iniciado) return; iniciado = true;
-  const { data: { session } } = await sb.auth.getSession();
+  let session; try { session = (await comPrazo(sb.auth.getSession())).data.session; } catch (e) { session = null; }
   if (!session) { iniciado = false; q$('#auth').hidden = false; q$('#carregando').hidden = true; return; } window.__USER = session.user; q$('#auth').hidden = true; q$('#carregando').hidden = false;
   try {
-    const { data: vazio, error: e1 } = await sb.rpc('sistema_vazio'); if (e1) throw e1;
-    const { data: eu } = await sb.rpc('meu_colab');
+    const { data: vazio, error: e1 } = await comPrazo(sb.rpc('sistema_vazio')); if (e1) throw e1;
+    const { data: eu } = await comPrazo(sb.rpc('meu_colab'));
     if (!vazio && !eu) {
       q$('#carregando').innerHTML = `<div class="au-card"><h1>Acesso não liberado</h1><p>O e-mail <b>${session.user.email.replace(/</g, '&lt;')}</b> ainda não está cadastrado como colaborador ativo. Peça ao administrador para cadastrar você em Administração, Colaboradores, com este mesmo e-mail.</p><button class="btn" onclick="sairSistema()">Sair</button></div>`;
       return;
     }
-    window.__DB = vazio ? null : await carregar();
+    window.__DB = vazio ? null : await comPrazo(carregar(), 60000);
     const s = document.createElement('script'); s.textContent = document.getElementById('app-src').textContent; document.body.appendChild(s);
     q$('#carregando').hidden = true; q$('.app').hidden = false;
     aoVivo(); log('Entrou no sistema'); status('Tudo salvo');
   } catch (err) {
-    q$('#carregando').innerHTML = `<div class="au-card"><h1>Não foi possível abrir</h1><p>${traduz(err.message || String(err)).replace(/</g, '&lt;')}</p><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`;
+    q$('#carregando').innerHTML = `<div class="au-card"><h1>Não foi possível abrir</h1><p>${traduz(err.message || String(err)).replace(/</g, '&lt;')}</p><button class="btn" onclick="location.reload()">Tentar de novo</button> <button class="btn ghost" onclick="sairSistema()">Sair e entrar de novo</button></div>`;
   }
 }
 sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { q$('#auth').hidden = false; q$('#carregando').hidden = true; trocaModo('nova'); } else if (ev === 'SIGNED_IN') setTimeout(iniciar, 0); }); // fora do aviso de login, senão a biblioteca trava esperando a si mesma
