@@ -52,7 +52,8 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           TITULO: ${{ github.event.issue.title }}
         run: |
-          git add -A -- . ':!resumo.txt' ':!teste.txt'
+          git reset -q
+          git add -A -- prototipo static public
           if git diff --cached --quiet; then echo "SEM_MUDANCA=1" >> $GITHUB_ENV; exit 0; fi
           git -c user.name="Cora" -c user.email="cora@users.noreply.github.com" commit -q -m "Cora: $TITULO (#$N)"
           git push -q -f origin cora/$N
