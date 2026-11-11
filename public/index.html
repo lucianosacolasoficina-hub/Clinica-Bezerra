@@ -528,7 +528,7 @@ function agenda(){
     titulo=ref.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});corpo=agMes(db.ag.filter(filtro));
   }
   const doDia=db.ag.filter(a=>a.data===agRef&&filtro(a)&&a.status!=='cancelado').length;
-  return `<div class="head"><div><h1>Agenda</h1><p>${titulo.charAt(0).toUpperCase()+titulo.slice(1)}</p></div><button class="btn" onclick="agNovo('${agRef}','09:00','${esc(agProf)}')">Novo agendamento</button></div>
+  return `<div class="head"><div><h1>Agenda</h1><p>${titulo.charAt(0).toUpperCase()+titulo.slice(1)}</p></div><button class="btn" onclick="agNovo('${agRef}','09:00','${esc(agProf)}')">Agendar</button></div>
   <div class="ag-bar">
     <div class="seg" role="group" aria-label="Visualização">${[['dia','Dia'],['semana','Semana'],['mes','Mês']].map(([v,n])=>`<button aria-pressed="${agView===v}" onclick="agIr('${v}')">${n}</button>`).join('')}</div>
     <div class="seg"><button onclick="agPasso(-1)" aria-label="Anterior">‹</button><button onclick="agIr(null,'${T}')">Hoje</button><button onclick="agPasso(1)" aria-label="Próximo">›</button></div>
