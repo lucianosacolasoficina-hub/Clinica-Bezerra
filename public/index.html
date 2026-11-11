@@ -47,6 +47,10 @@ nav{display:flex;flex-direction:column;gap:2px}
 nav button{all:unset;cursor:pointer;padding:9px 12px;border-radius:8px;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;align-items:center}
 nav button:hover{background:var(--surface-2);color:var(--fg)}
 nav button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav-lb{display:inline-flex;align-items:center;gap:8px}.nav-ic{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav-n{font-style:normal;font-size:11px;font-weight:700;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:99px;background:var(--bad);color:#fff;display:inline-flex;align-items:center;justify-content:center;margin-left:6px}.nav-n[hidden]{display:none}
+.p-vencida{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}.p-hoje{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--fg)}
+.kpi.alerta b{color:var(--bad)}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .demo-note{margin-top:auto;font-size:12px;color:var(--muted);background:var(--gold-soft);border-radius:8px;padding:10px 12px}
 .demo-note button{all:unset;cursor:pointer;color:var(--gold);font-weight:600;text-decoration:underline;margin-top:4px;display:inline-block}
@@ -360,6 +364,7 @@ label.chk input{width:auto;flex:none}
       <button data-v="procedimentos">Procedimentos</button>
       <button data-v="estoque">Estoque</button>
       <button data-v="financeiro">Financeiro</button>
+      <button data-v="contas"><span class="nav-lb"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4M7.5 14.5h4M7.5 17h2.5"/><circle cx="16.5" cy="15.5" r="2"/></svg>Contas a pagar</span><i class="nav-n" id="nav-contas" hidden></i></button>
       <button data-v="relatorios">Relatórios</button>
       <button data-v="marketing">Marketing</button>
       <button data-v="online">Agendamento online</button>
@@ -442,7 +447,7 @@ $('#nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.v)};
 function render(){
   if(VIEWMOD[view]&&!can(VIEWMOD[view]))view='painel';
   document.querySelectorAll('#nav button').forEach(b=>{b.setAttribute('aria-current',b.dataset.v===view);b.hidden=!!VIEWMOD[b.dataset.v]&&!can(VIEWMOD[b.dataset.v])});
-  $('#view').innerHTML=({painel,agenda,pacientes,procedimentos,financeiro,importar,admin,pacotes,estoque,relatorios,marketing,online})[view]();
+  $('#view').innerHTML=({painel,agenda,pacientes,procedimentos,financeiro,contas,importar,admin,pacotes,estoque,relatorios,marketing,online})[view]();contasBadge();
 }
 function monthFin(){const m=T.slice(0,7);return db.fin.filter(f=>f.data.slice(0,7)===m)}
 function painel(){
@@ -566,6 +571,40 @@ function financeiro(){
   ${l.map(f=>`<tr><td>${fmtD(f.data)}</td><td>${esc(f.desc)}</td><td class="hide-sm">${esc(f.forma)}</td><td>${pill(f.status)}</td><td class="num" style="color:${f.tipo==='receita'?'var(--ok)':'var(--bad)'}">${f.tipo==='receita'?'+':'−'} ${BRL(f.valor)}</td>
   <td class="num">${f.status==='pendente'?`<button class="btn ghost sm" onclick="receber('${f.id}')">${f.tipo==='receita'?'Receber':'Pagar'}</button>`:f.tipo==='receita'?(f.nf?`<span class="muted">NF ${f.nf}</span>`:`<button class="btn ghost sm" onclick="emitirNF('${f.id}')">Emitir NF</button>`):''}</td></tr>`).join('')}</tbody></table></div>${blocoComissoes()}`;
 }
+/* ---------- contas a pagar ---------- */
+let cpF='aberto';
+const CATCP=['Aluguel','Insumos e produtos','Comissões','Impostos e taxas','Água, luz e internet','Marketing','Equipamentos','Outros'];
+const cpSit=f=>f.status==='pago'?'pago':f.data<T?'vencida':f.data===T?'hoje':'pendente';
+const cpLista=()=>db.fin.filter(f=>f.tipo==='despesa');
+function contasBadge(){const el=document.getElementById('nav-contas');if(!el)return;const n=can('financeiro')?cpLista().filter(f=>f.status==='pendente'&&f.data<=T).length:0;el.hidden=!n;el.textContent=n}
+function contas(){
+  const ab=cpLista().filter(f=>f.status==='pendente');const soma=l=>l.reduce((s,f)=>s+f.valor,0);
+  const venc=ab.filter(f=>f.data<T),hoje=ab.filter(f=>f.data===T),sete=iso(addDays(TODAY,7)),prox=ab.filter(f=>f.data>T&&f.data<=sete);
+  const pagasM=cpLista().filter(f=>f.status==='pago'&&f.data.slice(0,7)===T.slice(0,7));
+  let l=cpLista().filter(f=>cpF==='todas'||(cpF==='aberto'?f.status==='pendente':f.status==='pago'));
+  l.sort((a,b)=>cpF==='pagas'?b.data.localeCompare(a.data):a.data.localeCompare(b.data));
+  const fn=id=>{const x=id&&db.forn.find(y=>y.id===id);return x?(x.fantasia||x.razao):''};
+  const nm={vencida:'Vencida',hoje:'Vence hoje',pendente:'A pagar',pago:'Paga'};
+  return `<div class="head"><div><h1>Contas a pagar</h1><p>Lançamentos de despesas, vencimentos e pagamentos</p></div>${can('financeiro','editar')?`<button class="btn" onclick="formConta()">Nova conta</button>`:''}</div>
+  <div class="grid kpis"><div class="kpi${venc.length?' alerta':''}"><small>Vencidas</small><b>${BRL(soma(venc))}</b><span>${venc.length} ${venc.length===1?'conta':'contas'}</span></div>
+  <div class="kpi"><small>Vencem hoje</small><b>${BRL(soma(hoje))}</b><span>${hoje.length} ${hoje.length===1?'conta':'contas'}</span></div>
+  <div class="kpi"><small>Próximos 7 dias</small><b>${BRL(soma(prox))}</b><span>${prox.length} ${prox.length===1?'conta':'contas'}</span></div>
+  <div class="kpi"><small>Pagas no mês</small><b>${BRL(soma(pagasM))}</b><span>em aberto ${BRL(soma(ab))}</span></div></div>
+  <div class="toolbar" style="margin-top:16px"><div class="seg">${[['aberto','Em aberto'],['pagas','Pagas'],['todas','Todas']].map(([k,t])=>`<button aria-pressed="${cpF===k}" onclick="cpF='${k}';render()">${t}</button>`).join('')}</div></div>
+  <div class="panel table-wrap" style="margin-top:12px">${l.length?`<table><thead><tr><th>Vencimento</th><th>Descrição</th><th class="hide-sm">Categoria</th><th>Situação</th><th class="num">Valor</th><th></th></tr></thead><tbody>
+  ${l.map(f=>{const st=cpSit(f);const sub=[fn(f.forn),f.forma].filter(Boolean).join(' · ');return `<tr><td>${fmtD(f.data)}</td><td>${esc(f.desc)}${sub?`<br><small class="muted">${esc(sub)}</small>`:''}</td><td class="hide-sm">${esc(f.cat||'')}</td><td><span class="pill p-${st}">${nm[st]}</span></td><td class="num">${BRL(f.valor)}</td>
+  <td class="num">${f.status==='pendente'&&can('financeiro','editar')?`<button class="btn ghost sm" onclick="receber('${f.id}')">Pagar</button>`:''}</td></tr>`}).join('')}</tbody></table>`:`<div class="empty">${cpF==='pagas'?'Nenhuma conta paga ainda.':'Nenhuma conta em aberto.'}</div>`}</div>`;
+}
+window.formConta=()=>{if(!need('financeiro'))return;modal('Nova conta a pagar',`<form class="f" id="fc"><label class="full">Descrição<input id="c-desc" required placeholder="Aluguel, boleto do fornecedor, internet…"></label>
+  <label>Valor (R$)<input type="number" step="0.01" min="0" id="c-val" required></label><label>Vencimento<input type="date" id="c-data" value="${T}" required></label>
+  <label>Categoria<select id="c-cat">${opt(CATCP.map(x=>[x,x]))}</select></label><label>Fornecedor<select id="c-forn"><option value="">(nenhum)</option>${opt(db.forn.map(f=>[f.id,f.fantasia||f.razao]))}</select></label>
+  <label>Forma<select id="c-forma">${opt(['Boleto','Pix','Transferência','Cartão de crédito','Débito automático','Dinheiro'].map(x=>[x,x]))}</select></label><label>Repetir<select id="c-rep">${opt([['1','Não repetir'],['3','Por 3 meses'],['6','Por 6 meses'],['12','Por 12 meses']])}</select></label>
+  <label class="chk full"><input type="checkbox" id="c-pago"> Já está paga</label>
+  <div class="actions"><button type="button" class="btn ghost" onclick="dlg.close()">Cancelar</button><button class="btn">Salvar</button></div></form>`);
+  $('#fc').onsubmit=e=>{e.preventDefault();const n=+$('#c-rep').value,d0=parse($('#c-data').value),desc=$('#c-desc').value.trim();
+    for(let i=0;i<n;i++){const d=new Date(d0.getFullYear(),d0.getMonth()+i,1);d.setDate(Math.min(d0.getDate(),new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));
+      db.fin.push({id:uid(),tipo:'despesa',desc:n>1?`${desc} (${i+1}/${n})`:desc,valor:+$('#c-val').value,data:iso(d),forma:$('#c-forma').value,cat:$('#c-cat').value,forn:$('#c-forn').value||undefined,status:i===0&&$('#c-pago').checked?'pago':'pendente'})}
+    log('Lançou conta a pagar: '+desc);save();dlg.close();render();toast(n>1?`${n} contas lançadas`:'Conta lançada')}};
 /* ---------- importação ---------- */
 const CAMPOS=[['nome','Nome',/nome|cliente|paciente/],['tel','Telefone',/tel|cel|whats|fone|phone/],['email','E-mail',/mail/],['nasc','Nascimento',/nasc|anivers|birth/],['obs','Observações',/obs|nota|anamn|coment/]];
 let imp=null;
@@ -875,7 +914,7 @@ const ME=()=>db.colab.find(c=>c.id===me)||{nome:window.__USER.email,exib:window.
 const can=(mod,n='ver')=>{const v=(db.perms[ME().perfil]||{})[mod]||'nenhum';return n==='ver'?v!=='nenhum':v==='editar'};
 const need=mod=>{if(can(mod,'editar'))return true;toast('Seu perfil não tem permissão para alterar isso');return false};
 function log(acao){const u=ME();db.log.unshift({q:new Date().toISOString(),u:u.nome,perfil:PERFIS[u.perfil]||'',acao});db.log=db.log.slice(0,300);window.SYNC.log(u.nome,PERFIS[u.perfil]||'',acao)}
-const VIEWMOD={agenda:'agenda',pacientes:'pacientes',procedimentos:'procedimentos',financeiro:'financeiro',importar:'importar',admin:'admin'};
+const VIEWMOD={agenda:'agenda',pacientes:'pacientes',procedimentos:'procedimentos',financeiro:'financeiro',contas:'financeiro',importar:'importar',admin:'admin'};
 
 const TEMAS=[
  ['classico','Clássico','Verde-petróleo e dourado em fundo claro. Agenda com faixa colorida na lateral.',{bg:'#f3f5f4',sf:'#ffffff',ac:'#1f6f62',s2:'#eaefed',ap:'border-left:3px solid #1f6f62;border-radius:3px'}],
