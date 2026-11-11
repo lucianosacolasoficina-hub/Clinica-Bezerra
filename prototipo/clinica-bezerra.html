@@ -1193,7 +1193,7 @@ let mudTimer=null;
 window.coraMudancas=async(msg)=>{
   if(!can('admin','editar')){toast('Só a administradora pode pedir mudanças no sistema');return}
   coraFecha();clearTimeout(mudTimer);
-  const corpo=lista=>`<div class="detail"><p class="hint" style="margin:0">Descreva o que quer mudar. A Cora faz a alteração, testa e mostra num <b>site de teste</b>. Só vai para o sistema quando você clicar em Publicar.</p>
+  const corpo=lista=>`<div class="detail"><p class="hint" style="margin:0">Descreva o que quer mudar. A Corinha faz a alteração, testa e mostra num <b>site de teste</b>. Só vai para o sistema quando você clicar em Publicar.</p>
     <form id="mud-f" style="display:flex;flex-direction:column;gap:8px"><textarea id="mud-t" rows="3" placeholder="Ex.: Na ficha da paciente, criar o campo Alergias logo abaixo do telefone" required minlength="8" maxlength="4000"></textarea>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="mud-s" type="password" placeholder="Sua senha para confirmar" autocomplete="current-password" style="flex:1;min-width:180px" required><button class="btn">Enviar pedido</button></div></form>
     ${msg?`<p class="hint" style="margin:0;color:var(--bad)">${esc(msg)}</p>`:''}
@@ -1310,7 +1310,7 @@ const CORA_SUG=['Horários livres hoje','Agenda de amanhã','Retornos pendentes'
 function coraResponde(txt){
   const t=NORM(txt).trim();
   if(!t||/^(oi|ola|bom dia|boa tarde|boa noite|ajuda|help|o que voce faz|\?)\b/.test(t)&&t.length<25)
-    return `Oi, ${esc(primeiro(ME()))}! Sou a Cora, a assistente da clínica. Posso te ajudar com:<ul><li>horários livres (ex.: "vagas sexta com a Carla para limpeza de pele")</li><li>a agenda de um dia</li><li>a ficha resumida de uma paciente (é só digitar o nome)</li><li>retornos, aniversariantes e faltas</li><li>estoque vencendo e faturamento do mês</li>${can('admin','editar')?'<li>mudanças no próprio sistema (ex.: "criar campo Alergias na ficha")</li>':''}</ul>`;
+    return `Oi, ${esc(primeiro(ME()))}! Sou a Corinha, a assistente da clínica. Posso te ajudar com:<ul><li>horários livres (ex.: "vagas sexta com a Carla para limpeza de pele")</li><li>a agenda de um dia</li><li>a ficha resumida de uma paciente (é só digitar o nome)</li><li>retornos, aniversariantes e faltas</li><li>estoque vencendo e faturamento do mês</li>${can('admin','editar')?'<li>mudanças no próprio sistema (ex.: "criar campo Alergias na ficha")</li>':''}</ul>`;
   if(/^(mudar|mude|muda|alterar|altere|criar|crie|colocar|coloque|tirar|tire|remover|remova|adicionar|adicione|trocar|troque)\b.*\b(sistema|botao|botoes|menu|campo|tela|cor|cores|aba|ficha|layout|aparencia|espaco|secao)\b/.test(t)){if(!can('admin','editar'))return 'Mudanças no sistema só podem ser pedidas pela administradora.';setTimeout(()=>{coraMudancas();const x=$('#mud-t');if(x)x.value=txt},50);return 'Abri a tela de mudanças com o seu pedido. Confirme a senha e envie.'}
   if(/livre|vaga|disponiv|encaixe|encaixar|tem horario|horarios/.test(t))return coraLivres(t);
   if(/retorno/.test(t))return coraRetornos();
@@ -1330,8 +1330,8 @@ function coraDesenha(){const b=$('#cora-msgs');if(!b)return;
 window.coraEnvia=txt=>{txt=String(txt||'').trim();if(!txt)return;coraHist.push({eu:true,t:txt});let r;try{r=coraResponde(txt)}catch(e){r='Tive um problema para responder isso. Tente de outro jeito.'}coraHist.push({t:r});coraHist=coraHist.slice(-30);coraDesenha();const i=$('#cora-in');if(i){i.value='';i.focus()}};
 window.coraAbre=()=>{const p=$('#cora');p.hidden=false;$('#cora-btn').setAttribute('aria-expanded','true');if(!coraHist.length)coraHist.push({t:coraResponde('oi')});coraDesenha();setTimeout(()=>$('#cora-in').focus(),50)};
 window.coraFecha=()=>{$('#cora').hidden=true;$('#cora-btn').setAttribute('aria-expanded','false')};
-document.body.insertAdjacentHTML('beforeend',`<button id="cora-btn" aria-expanded="false" aria-controls="cora" onclick="$('#cora').hidden?coraAbre():coraFecha()"><span>C</span>Cora</button>
-<section id="cora" hidden aria-label="Cora, assistente da clínica"><header><span class="cora-av">C</span><div><b>Cora</b><small>Assistente da clínica</small></div><button class="x" aria-label="Fechar" onclick="coraFecha()">×</button></header>
-<div id="cora-msgs" aria-live="polite"></div><form onsubmit="event.preventDefault();coraEnvia($('#cora-in').value)"><input id="cora-in" placeholder="Pergunte à Cora…" autocomplete="off"><button class="btn sm">Enviar</button></form></section>`);
+document.body.insertAdjacentHTML('beforeend',`<button id="cora-btn" aria-expanded="false" aria-controls="cora" onclick="$('#cora').hidden?coraAbre():coraFecha()"><span>C</span>Corinha</button>
+<section id="cora" hidden aria-label="Corinha, assistente da clínica"><header><span class="cora-av">C</span><div><b>Corinha</b><small>Assistente da clínica</small></div><button class="x" aria-label="Fechar" onclick="coraFecha()">×</button></header>
+<div id="cora-msgs" aria-live="polite"></div><form onsubmit="event.preventDefault();coraEnvia($('#cora-in').value)"><input id="cora-in" placeholder="Pergunte à Corinha…" autocomplete="off"><button class="btn sm">Enviar</button></form></section>`);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#cora').hidden&&!dlg.open)coraFecha()});
 </script>
