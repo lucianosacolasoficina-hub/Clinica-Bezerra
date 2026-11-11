@@ -51,6 +51,8 @@ nav button[aria-current="true"]{background:var(--accent-soft);color:var(--accent
 .nav-n{font-style:normal;font-size:11px;font-weight:700;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:99px;background:var(--bad);color:#fff;display:inline-flex;align-items:center;justify-content:center;margin-left:6px}.nav-n[hidden]{display:none}
 .p-vencida{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}.p-hoje{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--fg)}
 .kpi.alerta b{color:var(--bad)}
+.mic{display:inline-flex;align-items:center;gap:6px}.mic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.btn.mic.on{background:var(--bad);border-color:var(--bad);color:#fff}.mic.on svg{animation:mic-p 1s ease-in-out infinite}@keyframes mic-p{50%{opacity:.35}}
 nav button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .demo-note{margin-top:auto;font-size:12px;color:var(--muted);background:var(--gold-soft);border-radius:8px;padding:10px 12px}
 .demo-note button{all:unset;cursor:pointer;color:var(--gold);font-weight:600;text-decoration:underline;margin-top:4px;display:inline-block}
@@ -1253,11 +1255,22 @@ userBox();render();if(db.__novo){delete db.__novo;save();setTimeout(()=>{toast('
 const MUD_ST={fila:['Na fila','agendado'],andamento:['Fazendo','confirmado'],pronto:['Prévia pronta','realizado'],publicado:['Publicado','pago'],desfeito:['Desfeito','agendado'],descartado:['Descartado','cancelado'],erro:['Não deu certo','cancelado'],'sem-mudanca':['Sem mudança','agendado']};
 const linkar=t=>esc(t).replace(/https?:\/\/[^\s<]+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u}</a>`).replace(/\n/g,'<br>');
 let mudTimer=null;
+/* ditado por voz (reconhecimento de fala do próprio navegador, em português) */
+const FALA=window.SpeechRecognition||window.webkitSpeechRecognition;let falaAtiva=null;
+window.ditar=(id,btn)=>{if(falaAtiva){falaAtiva.stop();return}
+  const el=document.getElementById(id);if(!el||!FALA)return;const r=new FALA();r.lang='pt-BR';r.continuous=true;r.interimResults=true;
+  const base=el.value.trim();let fim='';const lb=btn.querySelector('span');
+  r.onresult=e=>{if(!el.isConnected){r.stop();return}let tmp='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)fim+=t;else tmp+=t}
+    let txt=(fim+tmp).trim();if(txt)txt=txt[0].toUpperCase()+txt.slice(1);el.value=(base?base+' ':'')+txt};
+  r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed')toast('Libere o microfone para este site nas configurações do navegador');else if(e.error!=='no-speech'&&e.error!=='aborted')toast('Não consegui ouvir. Tente de novo')};
+  r.onend=()=>{falaAtiva=null;btn.classList.remove('on');lb.textContent='Falar o pedido';el.focus()};
+  try{r.start();falaAtiva=r;btn.classList.add('on');lb.textContent='Ouvindo… toque para parar'}catch(e){toast('Não consegui ligar o microfone')}};
 window.coraMudancas=async(msg)=>{
   if(!can('admin','editar')){toast('Só a administradora pode pedir mudanças no sistema');return}
   coraFecha();clearTimeout(mudTimer);
   const corpo=lista=>`<div class="detail"><p class="hint" style="margin:0">Descreva o que quer mudar. A Corinha faz a alteração, testa e mostra num <b>site de teste</b>. Só vai para o sistema quando você clicar em Publicar.</p>
     <form id="mud-f" style="display:flex;flex-direction:column;gap:8px"><textarea id="mud-t" rows="3" placeholder="Ex.: Na ficha da paciente, criar o campo Alergias logo abaixo do telefone" required minlength="8" maxlength="4000"></textarea>
+    ${FALA?`<div><button type="button" class="btn ghost sm mic" id="mud-mic" onclick="ditar('mud-t',this)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><span>Falar o pedido</span></button></div>`:''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="mud-s" type="password" placeholder="Sua senha para confirmar" autocomplete="current-password" style="flex:1;min-width:180px" required><button class="btn">Enviar pedido</button></div></form>
     ${msg?`<p class="hint" style="margin:0;color:var(--bad)">${esc(msg)}</p>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="font-size:15px">Pedidos</h3><button class="btn ghost sm" onclick="coraMudancas()">Atualizar</button></div>
@@ -1279,7 +1292,7 @@ window.coraMudancas=async(msg)=>{
       ${x.estado==='pronto'?`<a class="btn ghost sm" href="${esc(r.site_teste)}" target="_blank" rel="noopener">Ver no teste</a><button class="btn sm" onclick="mudAcao('publicar',${x.n})">Publicar</button><button class="btn ghost sm" onclick="mudAcao('descartar',${x.n})">Descartar</button>`:''}
       ${x.estado==='publicado'?`<button class="btn ghost sm" onclick="mudAcao('desfazer',${x.n})">Desfazer</button>`:''}
       ${['erro','sem-mudanca'].includes(x.estado)?`<button class="btn ghost sm" onclick="mudAcao('descartar',${x.n})">Arquivar</button>`:''}</div></div>`}).join(''):'<div class="empty">Nenhum pedido ainda.</div>';
-  if(ps.some(x=>['fila','andamento'].includes(x.estado)))mudTimer=setTimeout(()=>{if(dlg.open&&$('#mud-f')&&!$('#mud-t').value)coraMudancas()},20000);
+  if(ps.some(x=>['fila','andamento'].includes(x.estado)))mudTimer=setTimeout(()=>{if(dlg.open&&$('#mud-f')&&!$('#mud-t').value&&!falaAtiva)coraMudancas()},20000);
 };
 window.mudAcao=async(acao,n)=>{
   const txt={publicar:'Publicar esta mudança no sistema? Todos passam a ver em cerca de 1 minuto.',desfazer:'Desfazer esta mudança e voltar o sistema à versão anterior?',descartar:'Descartar este pedido?'}[acao];
